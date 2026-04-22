@@ -24,8 +24,22 @@ const App: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [authAction, setAuthAction] = useState<AuthAction>('IDLE');
   const [showWelcome, setShowWelcome] = useState(true);
-  const [currentPage, setCurrentPage] = useState<Page>('Dashboard');
-  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    return (localStorage.getItem('activePage') as Page) || 'Dashboard';
+  });
+  
+  useEffect(() => {
+    localStorage.setItem('activePage', currentPage);
+  }, [currentPage]);
+
+  const [workers, setWorkers] = useState<Worker[]>(() => {
+    const cached = localStorage.getItem('workersCache');
+    return cached ? JSON.parse(cached) : [];
+  });
+  
+  useEffect(() => {
+    localStorage.setItem('workersCache', JSON.stringify(workers));
+  }, [workers]);
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -372,7 +386,10 @@ const App: React.FC = () => {
   }
 
   const renderPage = () => {
-    if (loading) {
+    // Show cached content immediately if it exists, even if loading is true
+    const isInitialLoad = loading && workers.length === 0;
+
+    if (isInitialLoad) {
       return (
         <div className="flex justify-center items-center h-full">
           <div className="flex flex-col items-center">
