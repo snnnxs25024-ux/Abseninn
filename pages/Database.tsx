@@ -67,31 +67,31 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
   const [importResults, setImportResults] = useState<{success: any[], failed: any[]}>({success: [], failed: []});
   const [isImportSummaryOpen, setIsImportSummaryOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [divisionFilter, setDivisionFilter] = useState('All');
   const [divisionOpts, setDivisionOpts] = useState<string[]>([]);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [viewQrCodeUrl, setViewQrCodeUrl] = useState('');
   const importFileRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
 
-  // Fetch Divisions for Dropdown & Validation
-  useEffect(() => {
-    const fetchDivisions = async () => {
-        const { data } = await supabase.from('master_data').select('value').eq('category', 'DIVISION').order('value', { ascending: true });
-        if (data && data.length > 0) {
-            setDivisionOpts(data.map(d => d.value));
-        } else {
-            setDivisionOpts(['SOC Operator', 'Cache', 'Return', 'Inventory']);
-        }
-    };
-    fetchDivisions();
-  }, []);
+    // Fetch Divisions for Dropdown & Validation
+    useEffect(() => {
+      const fetchDivisions = async () => {
+          const { data } = await supabase.from('master_data').select('value').eq('category', 'DIVISION').order('value', { ascending: true });
+          if (data && data.length > 0) {
+              setDivisionOpts(data.map(d => d.value));
+          } else {
+              setDivisionOpts(['SOC Operator', 'Cache', 'Return', 'Inventory']);
+          }
+      };
+      fetchDivisions();
+    }, []);
 
   const filteredWorkers = useMemo(() => {
     return workers
       .filter(worker => {
-        if (departmentFilter === 'All') return true;
-        return worker.department === departmentFilter;
+        if (divisionFilter === 'All') return true;
+        return worker.department === divisionFilter;
       })
       .filter(worker => {
         if (searchTerm.trim() === '') return true;
@@ -101,7 +101,7 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
           (worker.opsId || '').trim().toLowerCase().includes(lowercasedSearch)
         );
       });
-  }, [workers, searchTerm, departmentFilter]);
+  }, [workers, searchTerm, divisionFilter, divisionOpts]);
   
   // QR Code Generation for the new View Modal
   useEffect(() => {
@@ -336,6 +336,7 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
         phone: formData.get('phone') as string,
         contract_type: formData.get('contractType') as Worker['contractType'],
         department: formData.get('department') as string,
+        worker_type: formData.get('workerType') as string,
         status: formData.get('status') as Worker['status'],
     };
     
@@ -578,28 +579,34 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
         </div>
       </div>
 
+      {/* Search Bar Card */}
       <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={16} />
+          <div className="relative">
+             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <Search size={18} />
              </div>
             <input
               type="text"
               placeholder="Search by OpsID or Name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <select
-            value={departmentFilter}
-            onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="All">All Divisions</option>
-            {divisionOpts.map(div => <option key={div} value={div}>{div}</option>)}
-          </select>
+      </div>
+
+      {/* Filter Bar Card */}
+      <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+        <div className="flex flex-wrap gap-2 p-1 bg-gray-50 rounded-lg overflow-x-auto">
+            {['All', ...divisionOpts].map(div => (
+                <button
+                    key={div}
+                    onClick={() => setDivisionFilter(div)}
+                    className={`px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${divisionFilter === div ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}
+                >
+                    {div}
+                </button>
+            ))}
         </div>
       </div>
 
@@ -760,6 +767,14 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
                     defaultValue={selectedWorker?.status || "Active"} 
                     options={["Active", "Non Active", "Blacklist"]} 
                     required 
+                />
+                
+                <SelectField 
+                    label="Worker Type" 
+                    name="workerType"
+                    defaultValue={selectedWorker?.workerType || "Daily Worker Reguler"} 
+                    options={["Daily Worker Oncall", "Daily Worker Reguler", "Operator"]} 
+                    required={false}
                 />
             </div>
             <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-100">

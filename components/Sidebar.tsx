@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { LayoutDashboard, CalendarCheck, Database, Link, Settings } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, Database, Link, Settings, FileSpreadsheet } from 'lucide-react';
 import { Page } from '../App';
 import { supabase } from '../lib/supabaseClient';
 import Modal from './Modal';
@@ -79,6 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, 
       items: [
         { label: 'Absensi' as Page, icon: <CalendarCheck size={20} /> },
         { label: 'Open List' as Page, icon: <Link size={20} /> },
+        { label: 'MPP' as Page, icon: <FileSpreadsheet size={20} /> },
       ]
     },
     {

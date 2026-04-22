@@ -7,6 +7,7 @@ export interface Worker {
   phone: string;
   contractType: 'Daily Worker Vendor';
   department: string;
+  workerType?: 'Daily Worker Oncall' | 'Daily Worker Reguler' | 'Operator'; // Added field
   createdAt: string;
   status: 'Active' | 'Non Active' | 'Blacklist';
 }

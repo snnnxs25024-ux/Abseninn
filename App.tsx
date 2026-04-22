@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Database from './pages/Database';
+import MPP from './pages/MPP';
 import OpenList from './pages/OpenList';
 import PublicAttendance from './pages/PublicAttendance';
 import Settings from './pages/Settings';
@@ -16,7 +17,7 @@ import { supabase } from './lib/supabaseClient';
 import { ToastProvider } from './contexts/ToastContext';
 import { checkAndDeactivateWorkers } from './lib/attendanceUtils';
 
-export type Page = 'Dashboard' | 'Absensi' | 'Open List' | 'Data Base' | 'Pengaturan';
+export type Page = 'Dashboard' | 'Absensi' | 'Open List' | 'Data Base' | 'MPP' | 'Pengaturan';
 type AuthAction = 'IDLE' | 'RECOVERY';
 
 const App: React.FC = () => {
@@ -429,6 +430,8 @@ const App: React.FC = () => {
                  />;
       case 'Data Base':
         return <Database workers={workers} refreshData={fetchData} />;
+      case 'MPP':
+        return <MPP />;
       case 'Pengaturan':
           return <Settings />;
       default:
