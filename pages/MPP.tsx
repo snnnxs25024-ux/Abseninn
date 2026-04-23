@@ -161,10 +161,10 @@ const MPP: React.FC = () => {
       <div className="shadow rounded-lg border border-gray-200 overflow-hidden">
         <div className="max-h-[70vh] overflow-y-auto">
           <table className="min-w-full divide-y divide-gray-200 border-collapse">
-            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+            <thead className="bg-[#2D60FF] sticky top-0 z-10 shadow-sm">
               <tr>
                 {['Tanggal', 'Total Request', 'Schedule', 'Position', 'Request', 'Total Fulfillment', 'GAP NEXUS', '% Achievement'].map(h => (
-                  <th key={h} className="px-3 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider border-b">{h}</th>
+                  <th key={h} className="px-3 py-4 text-center text-xs font-bold text-white uppercase tracking-wider border-b border-[#2D60FF]">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -179,6 +179,12 @@ const MPP: React.FC = () => {
                           value={row[field]}
                           onChange={(e) => handleEdit(index, field, e.target.value)}
                           onBlur={() => handleSave(index, field)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              // blur the input to trigger onBlur which triggers save
+                              e.currentTarget.blur();
+                            }
+                          }}
                           className="w-20 mx-auto text-center font-semibold text-blue-700 border border-gray-300 focus:ring-2 focus:ring-blue-500 rounded p-1.5 bg-white shadow-sm hover:border-blue-400 transition-all"
                           placeholder="0"
                         />
