@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Papa from 'papaparse';
 
 interface MPPData {
@@ -24,6 +24,18 @@ const MPP: React.FC = () => {
   const [needAuth, setNeedAuth] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
+
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!loading && tableContainerRef.current) {
+      setTimeout(() => {
+        if (tableContainerRef.current) {
+          tableContainerRef.current.scrollTop = tableContainerRef.current.scrollHeight;
+        }
+      }, 100);
+    }
+  }, [loading]);
 
   useEffect(() => {
     let mounted = true;
@@ -143,10 +155,10 @@ const MPP: React.FC = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-end mb-4">
-        <div className="flex flex-col">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">MPP (Manpower Planning)</h1>
-          {isPolling && <span className="text-xs text-gray-400 mt-1">⟳ Sinkronisasi live...</span>}
+          {isPolling && <span className="text-xs text-gray-500 font-medium flex items-center">⟳ Sinkronisasi live...</span>}
         </div>
         <div className="flex items-center gap-4">
           {saving && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded font-medium animate-pulse">Menyimpan ke Google Sheets...</span>}
@@ -159,7 +171,7 @@ const MPP: React.FC = () => {
         </div>
       </div>
       <div className="shadow rounded-lg border border-gray-200 overflow-hidden">
-        <div className="max-h-[70vh] overflow-y-auto">
+        <div className="max-h-[70vh] overflow-y-auto" ref={tableContainerRef}>
           <table className="min-w-full divide-y divide-gray-200 border-collapse">
             <thead className="bg-[#2D60FF] sticky top-0 z-10 shadow-sm">
               <tr>
