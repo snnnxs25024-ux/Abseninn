@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Papa from 'papaparse';
 
 interface MPPData {
+  rowIndex?: number;
   tanggal: string;
   totalRequest: string;
   schedule: string;
@@ -12,11 +13,16 @@ interface MPPData {
   achievement: string;
 }
 
+const FIELDS: (keyof MPPData)[] = [
+  'tanggal', 'totalRequest', 'schedule', 'position', 'request', 'totalFulfillment', 'gapNexus', 'achievement'
+];
+
 const MPP: React.FC = () => {
   const [data, setData] = useState<MPPData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [needAuth, setNeedAuth] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetch('/api/mpp')
@@ -44,8 +50,40 @@ const MPP: React.FC = () => {
 
   const handleEdit = (index: number, field: keyof MPPData, value: string) => {
     const newData = [...data];
-    newData[index][field] = value;
+    newData[index][field] = value as never;
     setData(newData);
+  };
+
+  const handleSave = async (index: number, field: keyof MPPData) => {
+    const rowData = data[index];
+    if (!rowData.rowIndex) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch('/api/mpp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rowIndex: rowData.rowIndex,
+          field,
+          value: rowData[field]
+        })
+      });
+      if (response.status === 401) {
+        setNeedAuth(true);
+        throw new Error('Unauthenticated or missing write permissions');
+      }
+      if (!response.ok) {
+        throw new Error('Failed to update Google Sheet');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal menyimpan perubahan ke Google Sheets. Silakan muat ulang atau klik "Hubungkan dengan Akun Google" kembali untuk mendapakan izin baca & tulis yang utuh.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <div className="p-6">Memuat data MPP...</div>;
@@ -76,7 +114,10 @@ const MPP: React.FC = () => {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">MPP (Manpower Planning)</h1>
+      <div className="flex justify-between items-end mb-4">
+        <h1 className="text-2xl font-bold">MPP (Manpower Planning)</h1>
+        {saving && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded font-medium animate-pulse">Menyimpan ke Google Sheets...</span>}
+      </div>
       <div className="shadow rounded-lg border border-gray-200 overflow-hidden">
         <div className="max-h-[70vh] overflow-y-auto">
           <table className="min-w-full divide-y divide-gray-200 table-auto border-collapse">
@@ -90,13 +131,14 @@ const MPP: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {data.map((row, index) => (
                 <tr key={index} className="hover:bg-gray-50">
-                  {Object.entries(row).map(([field, value]) => (
+                  {FIELDS.map((field) => (
                     <td key={field} className="px-4 py-2 text-sm text-gray-700 text-center border-b">
                       <input
                         type="text"
-                        value={value}
-                        onChange={(e) => handleEdit(index, field as keyof MPPData, e.target.value)}
-                        className="w-full text-center border-none focus:ring-0 p-1 bg-transparent"
+                        value={row[field]}
+                        onChange={(e) => handleEdit(index, field, e.target.value)}
+                        onBlur={() => handleSave(index, field)}
+                        className="w-full text-center border-none focus:ring-2 focus:ring-blue-500 rounded p-1 bg-transparent hover:bg-gray-100 transition-colors"
                       />
                     </td>
                   ))}

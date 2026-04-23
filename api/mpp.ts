@@ -1,11 +1,22 @@
 import { google } from 'googleapis';
 
+const COLUMN_MAP: Record<string, string> = {
+  tanggal: 'A',
+  totalRequest: 'G',
+  schedule: 'H',
+  position: 'I',
+  request: 'BC',
+  totalFulfillment: 'BD',
+  gapNexus: 'BE',
+  achievement: 'BF',
+};
+
 export default async function handler(req: any, res: any) {
-  if (req.method !== 'GET') return res.status(405).send('Method Not Allowed');
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).send('Method Not Allowed');
+  }
 
   let tokensCookie = req.cookies?.google_tokens;
-  
-  // Fallback manual cookie parsing for serverless environments if req.cookies is missing
   if (!tokensCookie && req.headers.cookie) {
     const match = req.headers.cookie.match(/(?:^|;\s*)google_tokens=([^;]*)/);
     if (match) tokensCookie = match[1];
@@ -16,7 +27,6 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // Decode if encoded (fallback for older cookies or URL encoding)
     const decodedCookie = decodeURIComponent(tokensCookie);
     const tokens = JSON.parse(decodedCookie);
     
@@ -25,36 +35,64 @@ export default async function handler(req: any, res: any) {
       process.env.GOOGLE_CLIENT_SECRET
     );
     oauth2Client.setCredentials(tokens);
-
     const sheets = google.sheets({ version: 'v4', auth: oauth2Client });
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: '1203_SVnraS-2dzTcurZ9vah0kbliXfkQo2tPXmZT34g',
-      range: 'MPP!A:H', 
-    });
+    const spreadsheetId = '1203_SVnraS-2dzTcurZ9vah0kbliXfkQo2tPXmZT34g';
 
-    const rows = response.data.values;
-    if (!rows || rows.length === 0) {
-      return res.json([]);
+    if (req.method === 'GET') {
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'MPP!A:BF', 
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length === 0) return res.json([]);
+
+      const data = rows.slice(1).map((row: any[], index: number) => ({
+        rowIndex: index + 2, // Headings on row 1, data starts at row 2
+        tanggal: row[0] || '', // A
+        totalRequest: row[6] || '', // G
+        schedule: row[7] || '', // H
+        position: row[8] || '', // I
+        request: row[54] || '', // BC
+        totalFulfillment: row[55] || '', // BD
+        gapNexus: row[56] || '', // BE
+        achievement: row[57] || '', // BF
+      }));
+
+      return res.json(data);
+    } 
+    
+    if (req.method === 'POST') {
+      const { rowIndex, field, value } = req.body;
+      if (!rowIndex || !field) {
+        return res.status(400).json({ error: 'Missing rowIndex or field' });
+      }
+
+      const colLetter = COLUMN_MAP[field];
+      if (!colLetter) {
+        return res.status(400).json({ error: 'Unknown field mapping' });
+      }
+
+      const cellRange = `MPP!${colLetter}${rowIndex}`;
+      
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: cellRange,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [[value]]
+        }
+      });
+
+      return res.json({ success: true, message: `Updated ${cellRange}` });
     }
 
-    const data = rows.slice(1).map((row: any[]) => ({
-      tanggal: row[0] || '',
-      totalRequest: row[1] || '',
-      schedule: row[2] || '',
-      position: row[3] || '',
-      request: row[4] || '',
-      totalFulfillment: row[5] || '',
-      gapNexus: row[6] || '',
-      achievement: row[7] || '',
-    }));
-
-    res.json(data);
   } catch (error: any) {
     console.error('Sheets API Error:', error.message || error);
     if (error.code === 401 || error.message?.includes('invalid_grant')) {
       res.setHeader('Set-Cookie', 'google_tokens=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
       return res.status(401).json({ error: 'Session expired' });
     }
-    res.status(500).json({ error: 'Failed to fetch data' });
+    res.status(500).json({ error: 'Failed to process request' });
   }
 }

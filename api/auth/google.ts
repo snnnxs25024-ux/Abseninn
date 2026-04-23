@@ -13,7 +13,7 @@ export default function handler(req: any, res: any) {
   
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    scope: ['https://www.googleapis.com/auth/spreadsheets'],
     prompt: 'consent'
   });
   
