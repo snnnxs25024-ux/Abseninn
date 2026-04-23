@@ -443,88 +443,73 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
             let successfulRecords: any[] = [];
             let failedRecords: { row: any; reason: string }[] = [];
 
-            const isUpdateMode = json[0].hasOwnProperty('id');
-
-            if (isUpdateMode) {
-                // --- UPDATE (UPSERT) LOGIC ---
-                const workersToUpsert: any[] = [];
-                const existingWorkerMap = new Map<string, string>();
-                workers.forEach(w => {
-                    if (w.id) existingWorkerMap.set(w.opsId.toLowerCase(), w.id);
-                });
-
-                for (const row of json) {
-                    if (!row.id) { failedRecords.push({ row, reason: "Mode update, tetapi kolom 'id' kosong." }); continue; }
-                    
-                    const opsIdStr = row.opsId?.toString().trim();
-                    if (!opsIdStr) { failedRecords.push({ row, reason: "OpsID tidak boleh kosong." }); continue; }
-
-                    const conflictingWorkerId = existingWorkerMap.get(opsIdStr.toLowerCase());
-                    if (conflictingWorkerId && conflictingWorkerId !== row.id) {
-                        failedRecords.push({ row, reason: `OpsID '${opsIdStr}' sudah digunakan oleh karyawan lain.` });
-                        continue;
-                    }
-
-                    if (!row.department || !departmentValues.some(d => d.toLowerCase() === row.department?.toLowerCase())) { failedRecords.push({ row, reason: `Divisi tidak valid: ${row.department}` }); continue; }
-                    if (!row.status || !statusValues.includes(row.status)) { failedRecords.push({ row, reason: `Status tidak valid: ${row.status}` }); continue; }
-                    
-                    const matchedDept = departmentValues.find(d => d.toLowerCase() === row.department?.toLowerCase()) || row.department;
-                    workersToUpsert.push({
-                        id: row.id,
-                        ops_id: opsIdStr,
-                        full_name: row.fullName,
-                        nik: row.nik?.toString() ?? '',
-                        phone: row.phone?.toString() ?? '',
-                        contract_type: 'Daily Worker Vendor',
-                        department: matchedDept,
-                        status: row.status,
-                    });
+            const workersToUpsert: any[] = [];
+            const existingWorkerMap = new Map<string, string>();
+            workers.forEach(w => {
+                if (w.id && w.opsId) {
+                    existingWorkerMap.set(w.opsId.toString().trim().toLowerCase(), w.id);
                 }
-                if (workersToUpsert.length > 0) {
-                    const { data, error } = await supabase.from('workers').upsert(workersToUpsert).select();
-                    if (error) throw error;
-                    successfulRecords = data || [];
+            });
+
+            for (const row of json) {
+                const opsIdStr = row.opsId?.toString().trim();
+                if (!opsIdStr) { 
+                    failedRecords.push({ row, reason: "OpsID tidak boleh kosong." }); 
+                    continue; 
                 }
-            } else {
-                // --- INSERT LOGIC ---
-                const existingOpsIds = new Set(workers.map(w => w.opsId.toLowerCase()));
-                const workersToInsert: any[] = [];
-                for (const row of json) {
-                    const opsId = row.opsId?.toString().trim();
-                    if (!opsId) { failedRecords.push({ row, reason: "OpsID kosong." }); continue; }
-                    if (existingOpsIds.has(opsId.toLowerCase())) { failedRecords.push({ row, reason: "OpsID duplikat." }); continue; }
-                    if (!row.fullName || !row.nik || !row.phone) { failedRecords.push({ row, reason: "Kolom wajib kosong." }); continue; }
-                    if (!row.department || !departmentValues.some(d => d.toLowerCase() === row.department?.toLowerCase())) { failedRecords.push({ row, reason: `Divisi tidak valid: ${row.department}` }); continue; }
-                    if (!row.status || !statusValues.includes(row.status)) { failedRecords.push({ row, reason: `Status tidak valid: ${row.status}` }); continue; }
-                    
-                    existingOpsIds.add(opsId.toLowerCase());
-                    const matchedDept = departmentValues.find(d => d.toLowerCase() === row.department?.toLowerCase()) || row.department;
-                    workersToInsert.push({
-                        ops_id: opsId,
-                        full_name: row.fullName,
-                        nik: row.nik.toString(),
-                        phone: row.phone.toString(),
-                        contract_type: 'Daily Worker Vendor',
-                        department: matchedDept,
-                        status: row.status,
-                        created_at: new Date().toISOString(),
-                    });
+
+                if (!row.fullName || !row.nik || !row.phone) { 
+                    failedRecords.push({ row, reason: "Kolom Nama, NIK, atau Phone wajib diisi." }); 
+                    continue; 
                 }
-                if (workersToInsert.length > 0) {
-                    const { data, error } = await supabase.from('workers').insert(workersToInsert).select();
-                    if (error) throw error;
-                    successfulRecords = data || [];
+
+                let department = row.department;
+                if (!department || !departmentValues.some(d => d.toLowerCase() === department?.toLowerCase())) { 
+                    failedRecords.push({ row, reason: `Divisi tidak valid: ${department || 'Kosong'}` }); 
+                    continue; 
                 }
+
+                let status = row.status || 'Active';
+                if (!statusValues.includes(status)) { 
+                    failedRecords.push({ row, reason: `Status tidak valid: ${status}` }); 
+                    continue; 
+                }
+
+                const matchedDept = departmentValues.find(d => d.toLowerCase() === department?.toLowerCase()) || department;
+                const existingId = row.id || existingWorkerMap.get(opsIdStr.toLowerCase());
+
+                const workerData: any = {
+                    ops_id: opsIdStr,
+                    full_name: row.fullName,
+                    nik: row.nik?.toString() ?? '',
+                    phone: row.phone?.toString() ?? '',
+                    contract_type: row.contractType || 'Daily Worker Vendor',
+                    department: matchedDept,
+                    status: status,
+                };
+
+                if (existingId) {
+                    workerData.id = existingId;
+                } else {
+                    workerData.created_at = new Date().toISOString();
+                }
+
+                workersToUpsert.push(workerData);
+            }
+
+            if (workersToUpsert.length > 0) {
+                const { data, error } = await supabase.from('workers').upsert(workersToUpsert).select();
+                if (error) throw error;
+                successfulRecords = data || [];
             }
 
             setImportResults({ success: successfulRecords, failed: failedRecords });
             
             const totalSuccess = successfulRecords.length;
             const totalFailed = failedRecords.length;
-            const modeText = isUpdateMode ? "diperbarui" : "diimpor";
 
-            if (totalSuccess > 0) showToast(`${totalSuccess} data berhasil ${modeText}.`, { type: 'success', title: 'Berhasil' });
-            if (totalFailed > 0) showToast(`${totalFailed} data gagal ${modeText}. Cek summary.`, { type: 'error', title: 'Gagal Sebagian' });
+            if (totalSuccess > 0) showToast(`${totalSuccess} data berhasil diimpor / diperbarui.`, { type: 'success', title: 'Berhasil' });
+            if (totalFailed > 0) showToast(`${totalFailed} data gagal diproses. Cek summary.`, { type: 'error', title: 'Gagal Sebagian' });
             if (totalSuccess === 0 && totalFailed === 0) showToast("Tidak ada data baru untuk diimpor atau diperbarui.", { type: 'info', title: 'Info' });
             if (totalSuccess > 0) refreshData();
         } catch (err: any) {
