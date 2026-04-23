@@ -49,14 +49,14 @@ export default async function handler(req: any, res: any) {
 
       const data = rows.slice(1).map((row: any[], index: number) => ({
         rowIndex: index + 2, // Headings on row 1, data starts at row 2
-        tanggal: row[0] || '', // A
-        totalRequest: row[6] || '', // G
-        schedule: row[7] || '', // H
-        position: row[8] || '', // I
-        request: row[54] || '', // BC
-        totalFulfillment: row[55] || '', // BD
-        gapNexus: row[56] || '', // BE
-        achievement: row[57] || '', // BF
+        tanggal: row[0] || '', // A = 0
+        totalRequest: row[6] || '', // G = 6
+        schedule: row[7] || '', // H = 7
+        position: row[8] || '', // I = 8
+        request: row[54] || '', // BC = 54 (A=0 ... Z=25, AA=26 ... AZ=51, BA=52, BB=53, BC=54)
+        totalFulfillment: row[55] || '', // BD = 55
+        gapNexus: row[56] || '', // BE = 56
+        achievement: row[57] || '', // BF = 57
       }));
 
       return res.json(data);
