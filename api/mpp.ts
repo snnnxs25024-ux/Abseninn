@@ -36,12 +36,12 @@ export default async function handler(req: any, res: any) {
     );
     oauth2Client.setCredentials(tokens);
     const sheets = google.sheets({ version: 'v4', auth: oauth2Client });
-    const spreadsheetId = '1203_SVnraS-2dzTcurZ9vah0kbliXfkQo2tPXmZT34g';
+    const spreadsheetId = '1hjs0cXmEhT7iQ05jm5RkjdWGLrht3aGNwXFCkz5rt-o';
 
     if (req.method === 'GET') {
       const response = await sheets.spreadsheets.values.batchGet({
         spreadsheetId,
-        ranges: ['DW Oncall!A:A', 'DW Oncall!G:I', 'DW Oncall!BC:BF'], 
+        ranges: ["'DW Oncall'!A:A", "'DW Oncall'!G:I", "'DW Oncall'!BC:BF"], 
       });
 
       const valueRanges = response.data.valueRanges;
@@ -89,7 +89,7 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: 'Unknown field mapping' });
       }
 
-      const cellRange = `DW Oncall!${colLetter}${rowIndex}`;
+      const cellRange = `'DW Oncall'!${colLetter}${rowIndex}`;
       
       await sheets.spreadsheets.values.update({
         spreadsheetId,
