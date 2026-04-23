@@ -23,29 +23,49 @@ const MPP: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [needAuth, setNeedAuth] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
 
   useEffect(() => {
-    fetch('/api/mpp')
-      .then(async (res) => {
+    let mounted = true;
+    
+    const fetchMppData = async (background = false) => {
+      try {
+        if (background) setIsPolling(true);
+        const res = await fetch('/api/mpp');
+        
         if (res.status === 401) {
-          setNeedAuth(true);
+          if (mounted) setNeedAuth(true);
           throw new Error('Not authenticated');
         }
-        if (!res.ok) {
-          throw new Error('Failed to fetch data from server');
+        if (!res.ok) throw new Error('Failed to fetch data from server');
+        
+        const parsed = await res.json();
+        if (mounted) {
+          setData(parsed);
+          setLoading(false);
+          setError(null);
         }
-        return res.json();
-      })
-      .then((parsed) => {
-        setData(parsed);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (err.message !== 'Not authenticated') {
+      } catch (err: any) {
+        if (err.message !== 'Not authenticated' && mounted) {
           setError(err.message);
         }
-        setLoading(false);
-      });
+        if (mounted && !background) setLoading(false);
+      } finally {
+        if (mounted && background) setIsPolling(false);
+      }
+    };
+
+    fetchMppData();
+
+    // Poll every 10 seconds for real-time updates
+    const intervalId = setInterval(() => {
+      fetchMppData(true);
+    }, 10000);
+
+    return () => {
+      mounted = false;
+      clearInterval(intervalId);
+    };
   }, []);
 
   const handleEdit = (index: number, field: keyof MPPData, value: string) => {
@@ -124,7 +144,10 @@ const MPP: React.FC = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-end mb-4">
-        <h1 className="text-2xl font-bold">MPP (Manpower Planning)</h1>
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-bold">MPP (Manpower Planning)</h1>
+          {isPolling && <span className="text-xs text-gray-400 mt-1">⟳ Sinkronisasi live...</span>}
+        </div>
         <div className="flex items-center gap-4">
           {saving && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded font-medium animate-pulse">Menyimpan ke Google Sheets...</span>}
           <button 
@@ -137,26 +160,31 @@ const MPP: React.FC = () => {
       </div>
       <div className="shadow rounded-lg border border-gray-200 overflow-hidden">
         <div className="max-h-[70vh] overflow-y-auto">
-          <table className="min-w-full divide-y divide-gray-200 table-auto border-collapse">
-            <thead className="bg-gray-50 sticky top-0 z-10">
+          <table className="min-w-full divide-y divide-gray-200 border-collapse">
+            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
               <tr>
                 {['Tanggal', 'Total Request', 'Schedule', 'Position', 'Request', 'Total Fulfillment', 'GAP NEXUS', '% Achievement'].map(h => (
-                  <th key={h} className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap border-b">{h}</th>
+                  <th key={h} className="px-3 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider border-b">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {data.map((row, index) => (
-                <tr key={index} className="hover:bg-gray-50">
+                <tr key={index} className="hover:bg-gray-50 transition-colors">
                   {FIELDS.map((field) => (
-                    <td key={field} className="px-4 py-2 text-sm text-gray-700 text-center border-b">
-                      <input
-                        type="text"
-                        value={row[field]}
-                        onChange={(e) => handleEdit(index, field, e.target.value)}
-                        onBlur={() => handleSave(index, field)}
-                        className="w-full text-center border-none focus:ring-2 focus:ring-blue-500 rounded p-1 bg-transparent hover:bg-gray-100 transition-colors"
-                      />
+                    <td key={field} className="px-3 py-3 text-sm text-gray-700 text-center border-b align-middle">
+                      {field === 'totalFulfillment' ? (
+                        <input
+                          type="text"
+                          value={row[field]}
+                          onChange={(e) => handleEdit(index, field, e.target.value)}
+                          onBlur={() => handleSave(index, field)}
+                          className="w-20 mx-auto text-center font-semibold text-blue-700 border border-gray-300 focus:ring-2 focus:ring-blue-500 rounded p-1.5 bg-white shadow-sm hover:border-blue-400 transition-all"
+                          placeholder="0"
+                        />
+                      ) : (
+                        <span className="block max-w-[200px] mx-auto break-words">{row[field]}</span>
+                      )}
                     </td>
                   ))}
                 </tr>
