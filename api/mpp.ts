@@ -39,25 +39,41 @@ export default async function handler(req: any, res: any) {
     const spreadsheetId = '1203_SVnraS-2dzTcurZ9vah0kbliXfkQo2tPXmZT34g';
 
     if (req.method === 'GET') {
-      const response = await sheets.spreadsheets.values.get({
+      const response = await sheets.spreadsheets.values.batchGet({
         spreadsheetId,
-        range: 'MPP!A:BF', 
+        ranges: ['DW Oncall!A:A', 'DW Oncall!G:I', 'DW Oncall!BC:BF'], 
       });
 
-      const rows = response.data.values;
-      if (!rows || rows.length === 0) return res.json([]);
+      const valueRanges = response.data.valueRanges;
+      if (!valueRanges || valueRanges.length < 3) return res.json([]);
 
-      const data = rows.slice(1).map((row: any[], index: number) => ({
-        rowIndex: index + 2, // Headings on row 1, data starts at row 2
-        tanggal: row[0] || '', // A = 0
-        totalRequest: row[6] || '', // G = 6
-        schedule: row[7] || '', // H = 7
-        position: row[8] || '', // I = 8
-        request: row[54] || '', // BC = 54 (A=0 ... Z=25, AA=26 ... AZ=51, BA=52, BB=53, BC=54)
-        totalFulfillment: row[55] || '', // BD = 55
-        gapNexus: row[56] || '', // BE = 56
-        achievement: row[57] || '', // BF = 57
-      }));
+      const colA = valueRanges[0].values || [];
+      const colG_I = valueRanges[1].values || [];
+      const colBC_BF = valueRanges[2].values || [];
+
+      // Determine max rows based on Column A
+      const maxRows = colA.length;
+      if (maxRows <= 2) return res.json([]); // Assuming row 1 & 2 are headers based on Sheet image
+
+      const data = [];
+      // Start from index 2 (row 3 in sheets)
+      for (let i = 2; i < maxRows; i++) {
+        const row_A = colA[i] || [];
+        const row_G_I = colG_I[i] || [];
+        const row_BC_BF = colBC_BF[i] || [];
+
+        data.push({
+          rowIndex: i + 1, // Sheets are 1-indexed
+          tanggal: row_A[0] || '', // A
+          totalRequest: row_G_I[0] || '', // G
+          schedule: row_G_I[1] || '', // H
+          position: row_G_I[2] || '', // I
+          request: row_BC_BF[0] || '', // BC
+          totalFulfillment: row_BC_BF[1] || '', // BD
+          gapNexus: row_BC_BF[2] || '', // BE
+          achievement: row_BC_BF[3] || '', // BF
+        });
+      }
 
       return res.json(data);
     } 
@@ -73,7 +89,7 @@ export default async function handler(req: any, res: any) {
         return res.status(400).json({ error: 'Unknown field mapping' });
       }
 
-      const cellRange = `MPP!${colLetter}${rowIndex}`;
+      const cellRange = `DW Oncall!${colLetter}${rowIndex}`;
       
       await sheets.spreadsheets.values.update({
         spreadsheetId,
