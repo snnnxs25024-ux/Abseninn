@@ -56,11 +56,16 @@ export default async function handler(req: any, res: any) {
       if (maxRows <= 2) return res.json([]); // Assuming row 1 & 2 are headers based on Sheet image
 
       const data = [];
-      // Start from index 2 (row 3 in sheets)
+      // Row 1 & 2 are titles. Row 3 is often headings (e.g. "Tanggal"). Row 4 onwards is data.
       for (let i = 2; i < maxRows; i++) {
         const row_A = colA[i] || [];
         const row_G_I = colG_I[i] || [];
         const row_BC_BF = colBC_BF[i] || [];
+
+        // Skip the header row if it leaked into the data
+        if (row_A[0]?.toString().toLowerCase() === 'tanggal') {
+          continue;
+        }
 
         data.push({
           rowIndex: i + 1, // Sheets are 1-indexed

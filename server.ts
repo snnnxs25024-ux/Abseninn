@@ -7,6 +7,7 @@ import 'dotenv/config';
 // Import split Vercel API files
 import authGoogle from './api/auth/google.js';
 import authCallback from './api/auth/callback.js';
+import authLogout from './api/auth/logout.js';
 import mpp from './api/mpp.js';
 
 async function startServer() {
@@ -19,7 +20,9 @@ async function startServer() {
   // Mount the serverless API routes here for local development simulation
   app.get('/api/auth/google', authGoogle);
   app.get('/api/auth/callback', authCallback);
+  app.post('/api/auth/logout', authLogout);
   app.get('/api/mpp', mpp);
+  app.post('/api/mpp', mpp);
 
   // Vite development middleware vs Static Production files
   if (process.env.NODE_ENV !== "production") {

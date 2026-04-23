@@ -86,6 +86,15 @@ const MPP: React.FC = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   if (loading) return <div className="p-6">Memuat data MPP...</div>;
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
@@ -102,7 +111,7 @@ const MPP: React.FC = () => {
           <h2 className="text-xl font-bold mb-2">Autentikasi Diperlukan</h2>
           <p className="text-gray-600 mb-6">
             Aplikasi sekarang telah diubah ke <strong>Metode Real-time</strong>. 
-            Anda perlu mengizinkan aplikasi untuk membaca data Google Sheets secara langsung.
+            Anda perlu mengizinkan aplikasi untuk membaca dan <strong>menulis</strong> data Google Sheets secara langsung.
           </p>
           <a href="/api/auth/google" className="bg-blue-600 text-white font-medium px-6 py-3 rounded-md shadow-sm hover:bg-blue-700 transition">
             Hubungkan dengan Akun Google
@@ -116,7 +125,15 @@ const MPP: React.FC = () => {
     <div className="p-6">
       <div className="flex justify-between items-end mb-4">
         <h1 className="text-2xl font-bold">MPP (Manpower Planning)</h1>
-        {saving && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded font-medium animate-pulse">Menyimpan ke Google Sheets...</span>}
+        <div className="flex items-center gap-4">
+          {saving && <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded font-medium animate-pulse">Menyimpan ke Google Sheets...</span>}
+          <button 
+            onClick={handleLogout}
+            className="text-sm text-red-600 font-medium hover:text-red-700 hover:underline"
+          >
+            Logout Akun
+          </button>
+        </div>
       </div>
       <div className="shadow rounded-lg border border-gray-200 overflow-hidden">
         <div className="max-h-[70vh] overflow-y-auto">
