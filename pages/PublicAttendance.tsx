@@ -192,6 +192,7 @@ const PublicAttendance: React.FC = () => {
       });
       
       if(!worker) {
+          playSound('error');
           setMessage("OpsID / Nama tidak ditemukan atau status Non-Aktif.");
           setStatus('error');
           return;
@@ -204,12 +205,14 @@ const PublicAttendance: React.FC = () => {
         .eq('attendance_sessions.date', session.date);
       
       if (checkError) {
+          playSound('error');
           setMessage("Gagal memvalidasi data. Coba lagi.");
           setStatus('error');
           return;
       }
 
       if(existingDaily && existingDaily.length > 0) {
+          playSound('error');
           setMessage(`OpsID ini sudah absen pada tanggal ${session.date} (Max 1x per hari).`);
           setStatus('error');
           return;
@@ -221,6 +224,7 @@ const PublicAttendance: React.FC = () => {
         .eq('session_id', session.id);
       
       if (countError) {
+          playSound('error');
           setMessage("Gagal memvalidasi kuota. Coba lagi.");
           setStatus('error');
           return;
@@ -248,6 +252,7 @@ const PublicAttendance: React.FC = () => {
       });
 
       if(insertError) {
+          playSound('error');
           setMessage("Gagal menyimpan data. Coba lagi.");
           setStatus('error');
       } else {

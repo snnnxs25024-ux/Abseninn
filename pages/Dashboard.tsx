@@ -1409,6 +1409,37 @@ const handleDownloadQrReceipt = async () => {
         }
     };
     
+    const handleCopyReport = () => {
+        if (!selectedSession) return;
+        
+        const date = new Date(selectedSession.date);
+        const dayName = new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(date);
+        const formattedDate = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+        
+        const plan = selectedSession.planMpp;
+        const actual = selectedSession.records.filter(r => r.is_arrived && !r.is_takeout).length;
+        const gap = plan - actual;
+        const buffer = actual > plan ? actual - plan : 0;
+        
+        const report = `𝐑𝐞𝐩𝐨𝐫𝐭 𝐅𝐮𝐥𝐥𝐅𝐢𝐥𝐦𝐞𝐧𝐭 𝐃𝐚𝐢𝐥𝐲 𝐖𝐨𝐫𝐤𝐞𝐫 𝐕𝐞𝐧𝐝𝐨𝐫 𝐍𝐞𝐱𝐮𝐬 - 𝐒𝐮𝐧𝐭𝐞𝐫 𝐃𝐜
+
+${dayName}, ${formattedDate}
+
+Shift Jam : ${selectedSession.shiftTime}
+Plan : ${plan} Mp
+Actuall : ${actual} Mp
+Gap : ${gap} Mp
+Buffer : ${buffer} Mp
+
+Update Mpp Done √
+Update Rekapan √`;
+
+        navigator.clipboard.writeText(report).then(() => {
+            showToast('Laporan berhasil disalin.', { type: 'success', title: 'Tersalin!' });
+            setIsCopyDropdownOpen(false);
+        });
+    };
+    
     const sessionSummary = useMemo(() => {
         if (!selectedSession) return { absen: 0, actual: 0 };
         return {
@@ -1931,6 +1962,12 @@ const handleDownloadQrReceipt = async () => {
                                                     }`}
                                                 >
                                                     {copyFeedback === 'excel' ? <div className="flex items-center gap-2">Tersalin!</div> : <>Salin Format Excel<span className="block text-xs mt-0.5 text-gray-400">Format 4 Kolom (Tab)</span></>}
+                                                </button>
+                                                <button 
+                                                    onClick={handleCopyReport}
+                                                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 font-bold border-t border-gray-100"
+                                                >
+                                                    Salin Laporan
                                                 </button>
                                             </div>
                                         )}

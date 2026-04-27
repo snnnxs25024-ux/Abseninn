@@ -173,6 +173,7 @@ const Attendance: React.FC<AttendanceProps> = ({
       const worker = workers.find(w => w.opsId.toLowerCase() === opsIdInput.toLowerCase() && w.status === 'Active');
 
       if (!worker || !worker.id) {
+          playSound('error');
           setError(`Worker with OpsID "${opsIdInput}" not found or is inactive.`);
           setOpsIdInput('');
           return;
@@ -185,6 +186,7 @@ const Attendance: React.FC<AttendanceProps> = ({
               ? allowedDepartment.includes(worker.department) 
               : worker.department === allowedDepartment;
           if (!isAllowed) {
+              playSound('error');
               setError(`Worker ${worker.fullName} (${worker.department}) is not allowed in ${activeSession.division} session.`);
               setOpsIdInput('');
               return;
@@ -194,6 +196,7 @@ const Attendance: React.FC<AttendanceProps> = ({
 
       // VALIDATION 1: Check Local Buffer (Duplicate in Current Session)
       if (activeRecords.some(r => r.opsId === worker.opsId)) {
+          playSound('error');
           setError(`Worker ${worker.fullName} has already been scanned in this session.`);
           setOpsIdInput('');
           return;
@@ -209,11 +212,13 @@ const Attendance: React.FC<AttendanceProps> = ({
           
           if (error) {
              console.error(error);
+             playSound('error');
              setError("Error validating attendance history. Please try again.");
              return;
           }
 
           if (data && data.length > 0) {
+              playSound('error');
               setError(`Worker ${worker.fullName} has already attended a session today (${activeSession.date}).`);
               setOpsIdInput('');
               return;
