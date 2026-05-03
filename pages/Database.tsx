@@ -67,31 +67,42 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
   const [importResults, setImportResults] = useState<{success: any[], failed: any[]}>({success: [], failed: []});
   const [isImportSummaryOpen, setIsImportSummaryOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [divisionFilter, setDivisionFilter] = useState('All');
-  const [divisionOpts, setDivisionOpts] = useState<string[]>([]);
+  const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [departmentOpts, setDepartmentOpts] = useState<string[]>([]);
+  const [workerTypeOpts, setWorkerTypeOpts] = useState<string[]>([]);
+  const [contractTypeOpts, setContractTypeOpts] = useState<string[]>([]);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [viewQrCodeUrl, setViewQrCodeUrl] = useState('');
   const importFileRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
 
-    // Fetch Divisions for Dropdown & Validation
+    // Fetch Categories for Dropdowns
     useEffect(() => {
-      const fetchDivisions = async () => {
-          const { data } = await supabase.from('master_data').select('value').eq('category', 'DIVISION').order('value', { ascending: true });
+      const fetchMasterDataOpts = async () => {
+          const { data } = await supabase.from('master_data').select('value, category').order('value', { ascending: true });
           if (data && data.length > 0) {
-              setDivisionOpts(data.map(d => d.value));
+              const depts = data.filter(d => d.category === 'DEPARTMENT').map(d => d.value);
+              setDepartmentOpts(depts.length > 0 ? depts : ['SOC Operator', 'Cache', 'Return', 'Inventory']);
+              
+              const workers = data.filter(d => d.category === 'WORKER_TYPE').map(d => d.value);
+              setWorkerTypeOpts(workers.length > 0 ? workers : ["Daily Worker Oncall", "Daily Worker Reguler", "Operator"]);
+              
+              const contracts = data.filter(d => d.category === 'CONTRACT_TYPE').map(d => d.value);
+              setContractTypeOpts(contracts.length > 0 ? contracts : ["Daily Worker Vendor - Nexus"]);
           } else {
-              setDivisionOpts(['SOC Operator', 'Cache', 'Return', 'Inventory']);
+              setDepartmentOpts(['SOC Operator', 'Cache', 'Return', 'Inventory']);
+              setWorkerTypeOpts(["Daily Worker Oncall", "Daily Worker Reguler", "Operator"]);
+              setContractTypeOpts(["Daily Worker Vendor - Nexus"]);
           }
       };
-      fetchDivisions();
+      fetchMasterDataOpts();
     }, []);
 
   const filteredWorkers = useMemo(() => {
     return workers
       .filter(worker => {
-        if (divisionFilter === 'All') return true;
-        return worker.department === divisionFilter;
+        if (departmentFilter === 'All') return true;
+        return worker.department === departmentFilter;
       })
       .filter(worker => {
         if (searchTerm.trim() === '') return true;
@@ -101,7 +112,7 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
           (worker.opsId || '').trim().toLowerCase().includes(lowercasedSearch)
         );
       });
-  }, [workers, searchTerm, divisionFilter, divisionOpts]);
+  }, [workers, searchTerm, departmentFilter, departmentOpts]);
   
   // QR Code Generation for the new View Modal
   useEffect(() => {
@@ -329,7 +340,7 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
     e.preventDefault();
     setLoadingAction(true);
     const formData = new FormData(e.currentTarget);
-    const workerData = {
+    const workerData: any = {
         ops_id: formData.get('opsId') as string,
         full_name: formData.get('fullName') as string,
         nik: formData.get('nik') as string,
@@ -342,10 +353,14 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
     
     let error;
     if (selectedWorker) {
+      if (selectedWorker.status !== 'Active' && workerData.status === 'Active') {
+          workerData.created_at = new Date().toISOString();
+      }
       const { error: updateError } = await supabase.from('workers').update(workerData).eq('id', selectedWorker.id);
       error = updateError;
     } else {
-      const { error: insertError } = await supabase.from('workers').insert([{ ...workerData, created_at: new Date().toISOString() }]);
+      workerData.created_at = new Date().toISOString();
+      const { error: insertError } = await supabase.from('workers').insert([workerData]);
       error = insertError;
     }
     
@@ -390,9 +405,9 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
   };
   
   const handleDownloadTemplate = () => {
-    const headers = ['opsId', 'fullName', 'nik', 'phone', 'contractType', 'department', 'status'];
+    const headers = ['opsId', 'fullName', 'nik', 'phone', 'contractType', 'workerType', 'department', 'status'];
     const sampleData = [{ opsId: 'OPS999', fullName: 'John Doe', nik: '3201010101010001', phone: '081298765432',
-      contractType: 'Daily Worker Vendor', department: 'SOC Operator', status: 'Active'
+      contractType: 'Daily Worker Vendor - Nexus', workerType: 'Daily Worker Reguler', department: 'SOC Operator', status: 'Active'
     }];
     const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: headers });
     const workbook = XLSX.utils.book_new();
@@ -408,6 +423,7 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
         nik: w.nik,
         phone: w.phone,
         contractType: w.contractType,
+        workerType: w.workerType || 'Daily Worker Reguler',
         department: w.department,
         status: w.status,
     }));
@@ -437,7 +453,7 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
                 return;
             }
 
-            const departmentValues = divisionOpts;
+            const departmentValues = departmentOpts;
             const statusValues: Worker['status'][] = ['Active', 'Non Active', 'Blacklist'];
             
             let successfulRecords: any[] = [];
@@ -464,8 +480,8 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
                 }
 
                 let department = row.department;
-                if (!department || !departmentValues.some(d => d.toLowerCase() === department?.toLowerCase())) { 
-                    failedRecords.push({ row, reason: `Divisi tidak valid: ${department || 'Kosong'}` }); 
+                if (!department || !departmentOpts.some(d => d.toLowerCase() === department?.toLowerCase())) { 
+                    failedRecords.push({ row, reason: `Departemen tidak valid: ${department || 'Kosong'}` }); 
                     continue; 
                 }
 
@@ -475,7 +491,13 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
                     continue; 
                 }
 
-                const matchedDept = departmentValues.find(d => d.toLowerCase() === department?.toLowerCase()) || department;
+                const workerTypeValues = workerTypeOpts;
+                let workerType = row.workerType || 'Daily Worker Reguler';
+                if (!workerTypeValues.map(v => v.toLowerCase()).includes(workerType.toLowerCase())) {
+                    workerType = 'Daily Worker Reguler'; // Default if invalid
+                }
+
+                const matchedDept = departmentOpts.find(d => d.toLowerCase() === department?.toLowerCase()) || department;
                 const existingId = row.id || existingWorkerMap.get(opsIdStr.toLowerCase());
 
                 const workerData: any = {
@@ -483,7 +505,8 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
                     full_name: row.fullName,
                     nik: row.nik?.toString() ?? '',
                     phone: row.phone?.toString() ?? '',
-                    contract_type: row.contractType || 'Daily Worker Vendor',
+                    contract_type: row.contractType || 'Daily Worker Vendor - Nexus',
+                    worker_type: workerType,
                     department: matchedDept,
                     status: status,
                 };
@@ -583,11 +606,11 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
       {/* Filter Bar Card */}
       <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
         <div className="flex flex-wrap gap-2 p-1 bg-gray-50 rounded-lg overflow-x-auto">
-            {['All', ...divisionOpts].map(div => (
+            {['All', ...departmentOpts].map(div => (
                 <button
                     key={div}
-                    onClick={() => setDivisionFilter(div)}
-                    className={`px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${divisionFilter === div ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}
+                    onClick={() => setDepartmentFilter(div)}
+                    className={`px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${departmentFilter === div ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}
                 >
                     {div}
                 </button>
@@ -602,7 +625,8 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
                 <tr>
                 <th className="p-4">OpsID</th>
                 <th className="p-4">Full Name</th>
-                <th className="p-4 hidden md:table-cell">Division</th>
+                <th className="p-4 hidden md:table-cell">Tipe</th>
+                <th className="p-4 hidden md:table-cell">Departemen</th>
                 <th className="p-4 hidden lg:table-cell">Status</th>
                 <th className="p-4 text-center">Actions</th>
                 </tr>
@@ -612,6 +636,15 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
                 <tr key={worker.id} className="hover:bg-blue-50 transition-colors">
                     <td className="p-4 font-mono font-medium text-black">{worker.opsId}</td>
                     <td className="p-4 font-semibold text-gray-800">{worker.fullName}</td>
+                    <td className="p-4 hidden md:table-cell">
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
+                            worker.workerType === 'Daily Worker Oncall' ? 'bg-purple-100 text-purple-700' :
+                            worker.workerType === 'Operator' ? 'bg-blue-100 text-blue-700' :
+                            'bg-green-100 text-green-700'
+                        }`}>
+                            {worker.workerType === 'Daily Worker Oncall' ? 'Oncall' : worker.workerType === 'Operator' ? 'Operator' : 'Reguler'}
+                        </span>
+                    </td>
                     <td className="p-4 hidden md:table-cell">{worker.department}</td>
                     <td className="p-4 hidden lg:table-cell">
                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${worker.status === 'Active' ? 'bg-green-100 text-green-800' : worker.status === 'Blacklist' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
@@ -664,6 +697,9 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
                             <div>
                                 <p className="font-bold text-gray-700 text-lg">{selectedWorker.department}</p>
                                 <p className="text-sm text-gray-500">{selectedWorker.contractType}</p>
+                                <div className="mt-2 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded inline-block bg-blue-50 text-blue-600 border border-blue-100">
+                                    {selectedWorker.workerType || 'Daily Worker Reguler'}
+                                </div>
                             </div>
                         </div>
 
@@ -733,16 +769,16 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
                 <SelectField 
                     label="Contract Type" 
                     name="contractType" 
-                    defaultValue={selectedWorker?.contractType || "Daily Worker Vendor"} 
-                    options={["Daily Worker Vendor"]} 
+                    defaultValue={selectedWorker?.contractType || "Daily Worker Vendor - Nexus"} 
+                    options={contractTypeOpts} 
                     required 
                 />
                 
                 <SelectField 
-                    label="Division" 
+                    label="Departemen" 
                     name="department" 
                     defaultValue={selectedWorker?.department} 
-                    options={divisionOpts} 
+                    options={departmentOpts} 
                     required 
                 />
 
@@ -758,7 +794,7 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
                     label="Worker Type" 
                     name="workerType"
                     defaultValue={selectedWorker?.workerType || "Daily Worker Reguler"} 
-                    options={["Daily Worker Oncall", "Daily Worker Reguler", "Operator"]} 
+                    options={workerTypeOpts} 
                     required={false}
                 />
             </div>

@@ -41,7 +41,7 @@ const defaultShiftIds = [
     'SOCSTROPS1221', 'SOCSTROPS1322', 'SOCSTROPS1423', 'SOCSTROPS1500', 'SOCSTROPS1601', 'SOCSTROPS1702',
     'SOCSTROPS1803', 'SOCSTROPS1904', 'SOCSTROPS2005', 'SOCSTROPS2106', 'SOCSTROPS2207', 'SOCSTROPS2308',
 ];
-const defaultDivisions = ['ASM2', 'CACHE', 'TP SUNTER 1', 'TP SUNTER 2', 'INVENTORY', 'RETURN'];
+const defaultDepartments = ['ASM2', 'CACHE', 'TP SUNTER 1', 'TP SUNTER 2', 'INVENTORY', 'RETURN'];
 const defaultShiftTimes = Array.from({ length: 24 }, (_, i) => {
     const startHour = i;
     const endHour = (startHour + 9) % 24;
@@ -195,7 +195,7 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
     const [manualAddStatus, setManualAddStatus] = useState<'Partial' | 'Buffer' | 'On Plan'>('On Plan');
     const [manualAddError, setManualAddError] = useState<string | null>(null);
     const [isDetailReportModalOpen, setIsDetailReportModalOpen] = useState(false);
-    const [detailReportData, setDetailReportData] = useState<{ workerName: string; opsId: string; period: string; dates: { date: string; shiftTime: string; division: string; isTakeout: boolean }[], total: number } | null>(null);
+    const [detailReportData, setDetailReportData] = useState<{ workerName: string; opsId: string; period: string; dates: { date: string; shiftTime: string; department: string; isTakeout: boolean }[], total: number } | null>(null);
     const [isEditingSession, setIsEditingSession] = useState(false);
     const [isCopyDropdownOpen, setIsCopyDropdownOpen] = useState(false);
     const [copyFeedback, setCopyFeedback] = useState<'ops' | 'excel' | null>(null);
@@ -230,7 +230,7 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
 
     // Dynamic Options
     const [shiftIdOpts, setShiftIdOpts] = useState<string[]>(defaultShiftIds);
-    const [divisionOpts, setDivisionOpts] = useState<string[]>(defaultDivisions);
+    const [departmentOpts, setDepartmentOpts] = useState<string[]>(defaultDepartments);
     const [shiftTimeOpts, setShiftTimeOpts] = useState<string[]>(defaultShiftTimes);
 
     const openManageModal = useCallback((session: AttendanceSession) => {
@@ -246,11 +246,11 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
         const fetchMasterOptions = async () => {
             const { data } = await supabase.from('master_data').select('*');
             if (data && data.length > 0) {
-                const divs = data.filter(d => d.category === 'DIVISION').map(d => d.value);
+            const divs = data.filter(d => d.category === 'DEPARTMENT').map(d => d.value);
                 const times = data.filter(d => d.category === 'SHIFT_TIME').map(d => d.value);
                 const ids = data.filter(d => d.category === 'SHIFT_ID').map(d => d.value);
                 
-                if (divs.length > 0) setDivisionOpts(divs);
+                if (divs.length > 0) setDepartmentOpts(divs);
                 if (times.length > 0) setShiftTimeOpts(times);
                 if (ids.length > 0) setShiftIdOpts(ids);
             }
@@ -429,7 +429,7 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
         const reportData = displayedHistory.flatMap(session => 
             session.records.map(record => ({
                 'Tanggal': session.date,
-                'Divisi': session.division,
+                'Departemen': session.department,
                 'Shift Jam': session.shiftTime,
                 'Shift ID': session.shiftId,
                 'Ops ID': record.opsId,
@@ -450,21 +450,21 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
         if (format === 'xlsx') {
             const workbook = XLSX.utils.book_new();
             const divSummary: any[] = [];
-            const divisions = Array.from(new Set(displayedHistory.map(s => s.division)));
-            divisions.forEach(div => {
-                const divSessions = displayedHistory.filter(s => s.division === div);
-                const totalPlan = divSessions.reduce((sum, s) => sum + s.planMpp, 0);
-                const totalActual = divSessions.reduce((sum, s) => sum + s.records.filter(r => r.is_arrived && !r.is_takeout).length, 0);
+            const departments = Array.from(new Set(displayedHistory.map(s => s.department)));
+            departments.forEach(dept => {
+                const deptSessions = displayedHistory.filter(s => s.department === dept);
+                const totalPlan = deptSessions.reduce((sum, s) => sum + s.planMpp, 0);
+                const totalActual = deptSessions.reduce((sum, s) => sum + s.records.filter(r => r.is_arrived && !r.is_takeout).length, 0);
                 divSummary.push({
-                    'Divisi': div,
-                    'Total Sesi': divSessions.length,
+                    'Departemen': dept,
+                    'Total Sesi': deptSessions.length,
                     'Total Plan MPP': totalPlan,
                     'Total Actual Hadir': totalActual,
                     'Gap': totalActual - totalPlan,
                     '% Fulfillment': totalPlan > 0 ? `${((totalActual / totalPlan) * 100).toFixed(1)}%` : '0%',
                 });
             });
-            XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(divSummary), 'Ringkasan Divisi');
+            XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(divSummary), 'Ringkasan Departemen');
             XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(reportData), 'Detail Kehadiran');
             XLSX.writeFile(workbook, `${fileName}.xlsx`);
             showToast('Laporan Excel berhasil diunduh.', { type: 'success' });
@@ -488,8 +488,8 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
             };
 
             autoTable(doc, {
-                head: [['Tanggal', 'Divisi', 'Shift', 'Ops ID', 'Nama Lengkap', 'Scan In', 'Out', 'Durasi', 'Status']],
-                body: reportData.map(r => [r['Tanggal'], r['Divisi'], r['Shift Jam'], r['Ops ID'], r['Nama Lengkap'], r['Jam Scan (Aktual)'], r['Jam Pulang'], r['Total Jam Kerja'], r['Status']]),
+                head: [['Tanggal', 'Departemen', 'Shift', 'Ops ID', 'Nama Lengkap', 'Scan In', 'Out', 'Durasi', 'Status']],
+                body: reportData.map(r => [r['Tanggal'], r['Departemen'], r['Shift Jam'], r['Ops ID'], r['Nama Lengkap'], r['Jam Scan (Aktual)'], r['Jam Pulang'], r['Total Jam Kerja'], r['Status']]),
                 startY: 35, theme: 'striped', headStyles: { fillColor: [30, 58, 138], fontSize: 9 }, bodyStyles: { fontSize: 8 }, didDrawPage: addHeader, margin: { top: 35 }
             });
 
@@ -817,9 +817,10 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
         const formData = new FormData(e.currentTarget);
         const updates = {
             date: formData.get('date') as string,
-            division: formData.get('division') as string,
+            department: formData.get('department') as string,
             shift_time: formData.get('shiftTime') as string,
             shift_id: formData.get('shiftId') as string,
+            worker_type: formData.get('workerType') as string,
             plan_mpp: parseInt(formData.get('planMpp') as string, 10),
         };
 
@@ -836,9 +837,10 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
             // Update local state by mapping back to camelCase for the UI
             const clientUpdates = {
                 date: updates.date,
-                division: updates.division,
+                department: updates.department,
                 shiftTime: updates.shift_time,
                 shiftId: updates.shift_id,
+                workerType: updates.worker_type,
                 planMpp: updates.plan_mpp,
             };
             setAttendanceHistory(prev => prev.map(s => 
@@ -907,7 +909,7 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
         // 4. Sub Header
         ctx.fillStyle = '#4b5563'; // Gray
         ctx.font = '16px Arial';
-        ctx.fillText(`${selectedSession.division} | ${selectedSession.date} | ${selectedSession.shiftTime}`, width / 2, 70);
+        ctx.fillText(`${selectedSession.department} | ${selectedSession.date} | ${selectedSession.shiftTime}`, width / 2, 70);
     
         // 5. Table
         const tableYStart = headerHeight;
@@ -979,8 +981,8 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
     
         // --- Trigger Download ---
         const link = document.createElement('a');
-        const safeDivision = selectedSession.division.replace(/[^a-zA-Z0-9]/g, '_');
-        link.download = `Absensi_${safeDivision}_${selectedSession.date}.jpeg`;
+        const safeDepartment = selectedSession.department.replace(/[^a-zA-Z0-9]/g, '_');
+        link.download = `Absensi_${safeDepartment}_${selectedSession.date}.jpeg`;
         link.href = canvas.toDataURL('image/jpeg', 0.9);
         link.click();
     };
@@ -1059,16 +1061,16 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
                 return {
                     date: session.date,
                     shiftTime: session.shiftTime,
-                    division: session.division,
+                    department: session.department,
                     isTakeout: record.is_takeout
                 };
             })
-            .filter((item): item is { date: string; shiftTime: string; division: string; isTakeout: boolean } => item !== null)
+            .filter((item): item is { date: string; shiftTime: string; department: string; isTakeout: boolean } => item !== null)
             .sort((a, b) => new Date(a!.date).getTime() - new Date(b!.date).getTime());
         
-        const uniqueDetailsMap = new Map<string, { date: string; shiftTime: string; division: string; isTakeout: boolean }>();
+        const uniqueDetailsMap = new Map<string, { date: string; shiftTime: string; department: string; isTakeout: boolean }>();
         attendanceDetails.forEach(item => {
-            uniqueDetailsMap.set(`${item.date}-${item.shiftTime}-${item.division}`, item);
+            uniqueDetailsMap.set(`${item.date}-${item.shiftTime}-${item.department}`, item);
         });
         const uniqueDetails = Array.from(uniqueDetailsMap.values());
         
@@ -1177,7 +1179,7 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
             
             ctx.font = '12px Arial';
             ctx.fillStyle = item.isTakeout ? 'rgba(0, 0, 0, 0.3)' : '#4b5563';
-            ctx.fillText(item.division, sidePadding + 20, yCenter + 15);
+            ctx.fillText(item.department, sidePadding + 20, yCenter + 15);
 
             ctx.fillStyle = item.isTakeout ? '#9ca3af' : '#3b82f6';
             ctx.textAlign = 'right';
@@ -1418,8 +1420,8 @@ const handleDownloadQrReceipt = async () => {
         
         const plan = selectedSession.planMpp;
         const actual = selectedSession.records.filter(r => r.is_arrived && !r.is_takeout).length;
-        const gap = plan - actual;
-        const buffer = actual > plan ? actual - plan : 0;
+        const gapVal = actual >= plan ? '-' : (plan - actual).toString();
+        const bufferVal = actual > plan ? (actual - plan).toString() : '0';
         
         const report = `𝐑𝐞𝐩𝐨𝐫𝐭 𝐅𝐮𝐥𝐥𝐅𝐢𝐥𝐦𝐞𝐧𝐭 𝐃𝐚𝐢𝐥𝐲 𝐖𝐨𝐫𝐤𝐞𝐫 𝐕𝐞𝐧𝐝𝐨𝐫 𝐍𝐞𝐱𝐮𝐬 - 𝐒𝐮𝐧𝐭𝐞𝐫 𝐃𝐜
 
@@ -1428,8 +1430,8 @@ ${dayName}, ${formattedDate}
 Shift Jam : ${selectedSession.shiftTime}
 Plan : ${plan} Mp
 Actuall : ${actual} Mp
-Gap : ${gap} Mp
-Buffer : ${buffer} Mp
+Gap : ${gapVal} Mp
+Buffer : ${bufferVal} Mp
 
 Update Mpp Done √
 Update Rekapan √`;
@@ -1476,14 +1478,14 @@ Update Rekapan √`;
         setIsFilterModalOpen(false);
     };
 
-    const divisionStats = useMemo(() => {
+    const departmentStats = useMemo(() => {
         const stats: Record<string, number> = {};
         const activeOnly = workers.filter(w => w.status === 'Active');
         const activeTotal = activeOnly.length;
         
         activeOnly.forEach(w => {
-            const div = w.department || 'Belum Diatur';
-            stats[div] = (stats[div] || 0) + 1;
+            const dept = w.department || 'Belum Diatur';
+            stats[dept] = (stats[dept] || 0) + 1;
         });
 
         const sorted = Object.entries(stats)
@@ -1574,7 +1576,8 @@ Update Rekapan √`;
                                 <tr>
                                     <th className="p-3 font-semibold">Date</th>
                                     <th className="p-3 font-semibold">Tipe</th>
-                                    <th className="p-3 font-semibold">Divisi</th>
+                                    <th className="p-3 font-semibold text-center">Worker</th>
+                                    <th className="p-3 font-semibold">Departemen</th>
                                     <th className="p-3 font-semibold">Shift</th>
                                     <th className="p-3 font-semibold text-center">Plan</th>
                                     <th className="p-3 font-semibold text-center">Actual</th>
@@ -1609,7 +1612,18 @@ Update Rekapan √`;
                                                         {sessionType}
                                                     </span>
                                                 </td>
-                                                <td className="p-3">{session.division}</td>
+                                                <td className="p-3 text-center">
+                                                    {session.workerType ? (
+                                                        <span className={`px-2 py-0.5 text-[9px] font-black rounded uppercase border ${
+                                                            session.workerType === 'Daily Worker Oncall' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                            session.workerType === 'Operator' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                            'bg-green-50 text-green-600 border-green-100'
+                                                        }`}>
+                                                            {session.workerType === 'Daily Worker Oncall' ? 'Oncall' : session.workerType === 'Operator' ? 'Op' : 'Reg'}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td className="p-3">{session.department}</td>
                                                 <td className="p-3">{session.shiftTime}</td>
                                                 <td className="p-3 text-center">{planned}</td>
                                                 <td className="p-3 text-center font-bold text-gray-800">{actual}</td>
@@ -1642,11 +1656,11 @@ Update Rekapan √`;
                 </div>
             </div>
             
-            {/* Total per Divisi Widget */}
+            {/* Total per Departemen Widget */}
             <div className="lg:col-span-1 bg-white rounded-lg shadow-lg border border-gray-200 border-t-4 border-teal-500 transition-shadow duration-300 hover:shadow-xl flex flex-col p-4 sm:p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Total per Divisi</h2>
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">Total per Departemen</h2>
                 <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-                    {divisionStats.data.map((div, i) => (
+                    {departmentStats.data.map((div, i) => (
                         <div key={i} className="flex flex-col gap-1.5">
                             <div className="flex justify-between items-center text-sm">
                                 <span className="font-medium text-gray-700">{div.name}</span>
@@ -1660,13 +1674,13 @@ Update Rekapan √`;
                             </div>
                         </div>
                     ))}
-                    {divisionStats.data.length === 0 && (
-                        <p className="text-sm text-gray-500 text-center py-4">Belum ada data divisi</p>
+                    {departmentStats.data.length === 0 && (
+                        <p className="text-sm text-gray-500 text-center py-4">Belum ada data departemen</p>
                     )}
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center text-sm">
-                    <span className="text-gray-500 font-medium">Total Divisi Aktif</span>
-                    <span className="font-black text-teal-600">{divisionStats.data.length}</span>
+                    <span className="text-gray-500 font-medium">Total Departemen Aktif</span>
+                    <span className="font-black text-teal-600">{departmentStats.data.length}</span>
                 </div>
             </div>
         </div>
@@ -1737,9 +1751,9 @@ Update Rekapan √`;
                                             <input name="date" type="date" defaultValue={selectedSession.date} required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-semibold text-gray-500 uppercase">Divisi</label>
-                                            <select name="division" defaultValue={selectedSession.division} required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                {divisionOpts.map(d => <option key={d} value={d}>{d}</option>)}
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase">Departemen</label>
+                                            <select name="department" defaultValue={selectedSession.department} required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                {departmentOpts.map(d => <option key={d} value={d}>{d}</option>)}
                                             </select>
                                         </div>
                                         <div>
@@ -1758,6 +1772,14 @@ Update Rekapan √`;
                                             <label className="block text-xs font-semibold text-gray-500 uppercase">Plan MPP</label>
                                             <input name="planMpp" type="number" defaultValue={selectedSession.planMpp} min="1" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                         </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 uppercase">Tipe Worker</label>
+                                            <select name="workerType" defaultValue={selectedSession.workerType} className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="Daily Worker Reguler">Daily Worker Reguler</option>
+                                                <option value="Daily Worker Oncall">Daily Worker Oncall</option>
+                                                <option value="Operator">Operator</option>
+                                            </select>
+                                        </div>
                                     </div>
                                     <div className="flex justify-end gap-2 mt-4">
                                         <button type="button" onClick={() => setIsEditingSession(false)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancel</button>
@@ -1768,10 +1790,21 @@ Update Rekapan √`;
                                 <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                                     <div className="flex items-center gap-4">
                                         <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xl font-black">
-                                            {selectedSession.division.substring(0, 2)}
+                                            {selectedSession.department.substring(0, 2)}
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black text-gray-800">{selectedSession.division}</h3>
+                                            <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
+                                                {selectedSession.department}
+                                                {selectedSession.workerType && (
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border align-middle ${
+                                                        selectedSession.workerType === 'Daily Worker Oncall' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                                        selectedSession.workerType === 'Operator' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                                        'bg-green-100 text-green-700 border-green-200'
+                                                    }`}>
+                                                        {selectedSession.workerType === 'Daily Worker Oncall' ? 'Oncall' : selectedSession.workerType === 'Operator' ? 'Operator' : 'Reguler'}
+                                                    </span>
+                                                )}
+                                            </h3>
                                             <p className="text-sm text-gray-500 font-medium">
                                                 {selectedSession.date} <span className="mx-2 text-gray-300">|</span> {selectedSession.shiftTime}
                                             </p>
@@ -1810,6 +1843,7 @@ Update Rekapan √`;
                                 <thead className="bg-blue-600 text-white uppercase text-[10px] font-bold tracking-wider">
                                     <tr>
                                         <th className="p-3 text-center">Kehadiran<br/>Fisik</th>
+                                        <th className="p-3 text-center">Tipe</th>
                                         <th className="p-3">OpsID</th>
                                         <th className="p-3">Nama Lengkap</th>
                                         <th className="p-3 text-center">Total<br/>HK</th>
@@ -1823,6 +1857,8 @@ Update Rekapan √`;
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-xs">
                                     {selectedSession.records.map(record => {
+                                        const worker = workers.find(w => w.id === record.workerId);
+                                        const wType = worker?.workerType || 'Daily Worker Reguler';
                                         const now = new Date().getTime();
                                         const checkinTime = new Date(record.timestamp).getTime();
                                         const nineHoursInMillis = 9 * 60 * 60 * 1000;
@@ -1861,6 +1897,15 @@ Update Rekapan √`;
                                                             {isArrived ? 'HADIR' : 'OTW'}
                                                         </span>
                                                     </div>
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                        wType === 'Daily Worker Oncall' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                                                        wType === 'Operator' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                                                        'bg-green-50 text-green-700 border border-green-100'
+                                                    }`}>
+                                                        {wType === 'Daily Worker Oncall' ? 'Oncall' : wType === 'Operator' ? 'Op' : 'Reg'}
+                                                    </span>
                                                 </td>
                                                 <td className="p-3 font-mono font-bold text-gray-900">{record.opsId}</td>
                                                 <td className="p-3 font-semibold text-gray-800">{record.fullName}</td>
@@ -2027,7 +2072,7 @@ Update Rekapan √`;
                         <div className="border rounded-lg bg-white shadow-sm">
                              <ul className="divide-y divide-gray-100">
                                 {detailReportData.dates.length > 0 ? (
-                                    detailReportData.dates.map((item: { date: string; shiftTime: string; division: string; isTakeout: boolean }, index: number) => (
+                                    detailReportData.dates.map((item: { date: string; shiftTime: string; department: string; isTakeout: boolean }, index: number) => (
                                         <li key={index} className={`p-4 flex justify-between items-center hover:bg-blue-50 transition-colors duration-150 ${item.isTakeout ? 'opacity-60 bg-gray-50' : ''}`}>
                                             <div className="flex flex-col">
                                                 <span className={`font-medium text-sm ${item.isTakeout ? 'text-gray-500' : 'text-gray-800'}`}>
@@ -2035,7 +2080,7 @@ Update Rekapan √`;
                                                 </span>
                                                 <div className="mt-1 flex items-center gap-2">
                                                      <span className={`inline-block px-2 py-0.5 text-xs font-bold rounded border shadow-sm ${item.isTakeout ? 'text-gray-400 bg-gray-100 border-gray-200' : 'text-gray-600 bg-gray-200 border-gray-300'}`}>
-                                                        {item.division}
+                                                        {item.department}
                                                     </span>
                                                     {item.isTakeout && (
                                                         <span className="inline-block px-2 py-0.5 text-[10px] font-black uppercase tracking-widest bg-red-100 text-red-600 rounded-full border border-red-200">

@@ -9,15 +9,21 @@ export const checkAndDeactivateWorkers = async (
   const now = new Date();
   const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
   
-  // Filter for Daily Worker Vendor in SOC Operator division
+  // Filter for Daily Worker Vendor in SOC Operator department
   const targetWorkers = workers.filter(
-    (w) => w.contractType === 'Daily Worker Vendor' && 
+    (w) => w.contractType === 'Daily Worker Vendor - Nexus' && 
            w.department === 'SOC Operator' &&
-           w.status === 'Active'
+           w.status === 'Active' &&
+           w.workerType === 'Daily Worker Reguler' // Only auto-deactivate Reguler workers
   );
 
   for (const worker of targetWorkers) {
     if (!worker.id) continue;
+    
+    // Do not deactivate if worker was created within the last month
+    if (new Date(worker.createdAt) >= oneMonthAgo) {
+      continue;
+    }
 
     // Check attendance in the last month (approx 30 days)
     // recordsData uses 'worker_id' but mapped workers use 'id'. 

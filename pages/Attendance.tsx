@@ -17,7 +17,7 @@ interface AttendanceProps {
   setActiveRecords: React.Dispatch<React.SetStateAction<Omit<AttendanceRecord, 'id' | 'checkout_timestamp' | 'manual_status' | 'is_takeout'>[]>>;
 }
 
-const divisionToDepartmentMap: { [key: string]: Worker['department'] | Worker['department'][] } = {
+const departmentMapping: { [key: string]: Worker['department'] | Worker['department'][] } = {
     'ASM2': 'SOC Operator',
     'CACHE': 'Cache',
     'INVENTORY': 'Inventory',
@@ -34,7 +34,7 @@ const defaultShiftIds = [
     'SOCSTROPS1803', 'SOCSTROPS1904', 'SOCSTROPS2005', 'SOCSTROPS2106', 'SOCSTROPS2207', 'SOCSTROPS2308',
 ];
 
-const defaultDivisions = ['ASM2', 'CACHE', 'TP SUNTER 1', 'TP SUNTER 2', 'INVENTORY', 'RETURN'];
+const defaultDepartments = ['ASM2', 'CACHE', 'TP SUNTER 1', 'TP SUNTER 2', 'INVENTORY', 'RETURN'];
 
 const defaultShiftTimes = Array.from({ length: 24 }, (_, i) => {
     const startHour = i;
@@ -60,18 +60,18 @@ const Attendance: React.FC<AttendanceProps> = ({
   
   // Dynamic Options
   const [shiftIdOpts, setShiftIdOpts] = useState<string[]>(defaultShiftIds);
-  const [divisionOpts, setDivisionOpts] = useState<string[]>(defaultDivisions);
+  const [departmentOpts, setDepartmentOpts] = useState<string[]>(defaultDepartments);
   const [shiftTimeOpts, setShiftTimeOpts] = useState<string[]>(defaultShiftTimes);
 
   useEffect(() => {
     const fetchMasterOptions = async () => {
         const { data } = await supabase.from('master_data').select('*');
         if (data && data.length > 0) {
-            const divs = data.filter(d => d.category === 'DIVISION').map(d => d.value);
+            const divs = data.filter(d => d.category === 'DEPARTMENT').map(d => d.value);
             const times = data.filter(d => d.category === 'SHIFT_TIME').map(d => d.value);
             const ids = data.filter(d => d.category === 'SHIFT_ID').map(d => d.value);
             
-            if (divs.length > 0) setDivisionOpts(divs);
+            if (divs.length > 0) setDepartmentOpts(divs);
             if (times.length > 0) setShiftTimeOpts(times);
             if (ids.length > 0) setShiftIdOpts(ids);
         }
@@ -110,13 +110,14 @@ const Attendance: React.FC<AttendanceProps> = ({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const date = formData.get('sessionDate') as string;
-    const division = formData.get('division') as string;
+    const department = formData.get('department') as string;
+    const workerType = formData.get('workerType') as AttendanceSession['workerType'];
     const shiftTime = formData.get('shiftTime') as string;
     const shiftId = formData.get('shiftId') as string;
     const planMpp = parseInt(formData.get('planMpp') as string, 10);
 
-    if (date && division && shiftTime && shiftId && planMpp > 0) {
-      setActiveSession({ date, division, shiftTime, shiftId, planMpp });
+    if (date && department && shiftTime && shiftId && planMpp > 0) {
+      setActiveSession({ date, department, workerType, shiftTime, shiftId, planMpp });
       setActiveRecords([]);
       setError(null);
       showToast('Sesi manual baru telah dimulai.', { type: 'success', title: 'Sesi Dimulai' });
@@ -179,20 +180,28 @@ const Attendance: React.FC<AttendanceProps> = ({
           return;
       }
 
-      // VALIDATION: Check Division permission using the flexible map
-      const allowedDepartment = divisionToDepartmentMap[activeSession.division];
+      // VALIDATION: Check Department permission using the flexible map
+      const allowedDepartment = departmentMapping[activeSession.department];
       if (allowedDepartment) {
           const isAllowed = Array.isArray(allowedDepartment) 
               ? allowedDepartment.includes(worker.department) 
               : worker.department === allowedDepartment;
           if (!isAllowed) {
               playSound('error');
-              setError(`Worker ${worker.fullName} (${worker.department}) is not allowed in ${activeSession.division} session.`);
+              setError(`Worker ${worker.fullName} (${worker.department}) is not allowed in ${activeSession.department} session.`);
               setOpsIdInput('');
               return;
           }
       }
-      // If division is not in map, it's a new dynamic one, so we allow anyone.
+
+      // VALIDATION: Check Worker Type if session is restricted
+      if (activeSession.workerType && worker.workerType !== activeSession.workerType) {
+          playSound('error');
+          setError(`Worker ${worker.fullName} is "${worker.workerType || 'Reguler'}", but this session is for "${activeSession.workerType}".`);
+          setOpsIdInput('');
+          return;
+      }
+      // If department is not in map, it's a new dynamic one, so we allow anyone.
 
       // VALIDATION 1: Check Local Buffer (Duplicate in Current Session)
       if (activeRecords.some(r => r.opsId === worker.opsId)) {
@@ -258,7 +267,8 @@ const Attendance: React.FC<AttendanceProps> = ({
             const { error: sessionError } = await supabase.from('attendance_sessions').insert({
                 id: newSessionId, 
                 date: activeSession.date, 
-                division: activeSession.division,
+                department: activeSession.department,
+                worker_type: activeSession.workerType,
                 shift_time: activeSession.shiftTime, 
                 shift_id: activeSession.shiftId, 
                 plan_mpp: activeSession.planMpp,
@@ -278,7 +288,7 @@ const Attendance: React.FC<AttendanceProps> = ({
             const { error: recordsError } = await supabase.from('attendance_records').insert(recordsToInsert);
             if (recordsError) throw recordsError;
         }
-        showToast(`Sesi manual untuk ${activeSession.division} berhasil disimpan.`, { type: 'success', title: 'Sesi Disimpan' });
+        showToast(`Sesi manual untuk ${activeSession.department} berhasil disimpan.`, { type: 'success', title: 'Sesi Disimpan' });
         setActiveSession(null);
         setActiveRecords([]);
         setIsModalOpen(true);
@@ -332,7 +342,19 @@ const Attendance: React.FC<AttendanceProps> = ({
                             <div className="flex items-baseline gap-3">
                                 <h2 className="text-2xl font-bold text-gray-800">{activeSession.date}</h2>
                                 <span className="text-lg font-medium text-gray-500">|</span>
-                                <h3 className="text-xl font-semibold text-blue-600">{activeSession.division}</h3>
+                                <h3 className="text-xl font-semibold text-blue-600">{activeSession.department}</h3>
+                                {activeSession.workerType && (
+                                    <>
+                                        <span className="text-lg font-medium text-gray-400">/</span>
+                                        <span className={`text-sm font-black px-3 py-1 rounded-full uppercase border ${
+                                            activeSession.workerType === 'Daily Worker Oncall' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                            activeSession.workerType === 'Operator' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                            'bg-green-100 text-green-700 border-green-200'
+                                        }`}>
+                                            {activeSession.workerType === 'Daily Worker Oncall' ? 'Oncall' : activeSession.workerType === 'Operator' ? 'Operator' : 'Reguler'}
+                                        </span>
+                                    </>
+                                )}
                             </div>
                         </div>
                         
@@ -393,8 +415,19 @@ const Attendance: React.FC<AttendanceProps> = ({
                                     onClick={() => handleSuggestionClick(worker)} 
                                     className={`p-3 cursor-pointer border-b last:border-0 ${index === highlightedIndex ? 'bg-blue-100' : 'hover:bg-blue-50'}`}
                                 >
-                                    <p className="font-semibold text-sm text-gray-800">{worker.fullName}</p>
-                                    <p className="text-xs text-black font-mono">{worker.opsId}</p>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-semibold text-sm text-gray-800">{worker.fullName}</p>
+                                            <p className="text-xs text-black font-mono">{worker.opsId}</p>
+                                        </div>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                            worker.workerType === 'Daily Worker Oncall' ? 'bg-purple-100 text-purple-700' :
+                                            worker.workerType === 'Operator' ? 'bg-blue-100 text-blue-700' :
+                                            'bg-green-100 text-green-700'
+                                        }`}>
+                                            {worker.workerType === 'Daily Worker Oncall' ? 'Oncall' : worker.workerType === 'Operator' ? 'Operator' : 'Reguler'}
+                                        </span>
+                                    </div>
                                 </li>
                             ))}
                         </ul>
@@ -412,6 +445,7 @@ const Attendance: React.FC<AttendanceProps> = ({
                         <thead className="bg-blue-600 text-white shadow-sm">
                             <tr>
                                 <th className="p-4 font-bold uppercase tracking-wider rounded-tl-lg">OpsID</th>
+                                <th className="p-4 font-bold uppercase tracking-wider text-center">Tipe</th>
                                 <th className="p-4 font-bold uppercase tracking-wider">Nama Lengkap</th>
                                 <th className="p-4 font-bold uppercase tracking-wider">Shift Jam Masuk</th>
                                 <th className="p-4 font-bold uppercase tracking-wider">Jam Scan (Aktual)</th>
@@ -420,9 +454,22 @@ const Attendance: React.FC<AttendanceProps> = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {activeRecords.map(record => (
+                            {activeRecords.map(record => {
+                                const worker = workers.find(w => w.id === record.workerId);
+                                const wType = worker?.workerType || 'Daily Worker Reguler';
+                                
+                                return (
                                 <tr key={record.workerId} className="hover:bg-blue-50 transition-colors">
                                     <td className="p-4 font-mono font-bold text-black">{record.opsId}</td>
+                                    <td className="p-4 text-center">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border ${
+                                            wType === 'Daily Worker Oncall' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                            wType === 'Operator' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                            'bg-green-50 text-green-700 border-green-100'
+                                        }`}>
+                                            {wType === 'Daily Worker Oncall' ? 'Oncall' : wType === 'Operator' ? 'Operator' : 'Reguler'}
+                                        </span>
+                                    </td>
                                     <td className="p-4 font-semibold text-gray-800">{record.fullName}</td>
                                     <td className="p-4 text-gray-700">{new Date(record.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</td>
                                     <td className="p-4 font-mono text-gray-500">
@@ -440,7 +487,8 @@ const Attendance: React.FC<AttendanceProps> = ({
                                       </button>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                             {activeRecords.length === 0 && (
                                 <tr>
                                     <td colSpan={6} className="p-8 text-center text-gray-400 italic">Belum ada karyawan yang di-scan.</td>
@@ -472,35 +520,45 @@ const Attendance: React.FC<AttendanceProps> = ({
         </div>
       )}
 
-      <Modal isOpen={isModalOpen && !activeSession} onClose={() => setIsModalOpen(false)} title="Start Manual Attendance Session">
-        <form onSubmit={handleStartSession} className="space-y-4">
-          <div>
-            <label htmlFor="sessionDate" className="block mb-2 text-sm font-medium text-gray-700">Tanggal Sesi</label>
-            <input type="date" id="sessionDate" name="sessionDate" defaultValue={getTodayString()} required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <Modal isOpen={isModalOpen && !activeSession} onClose={() => setIsModalOpen(false)} title="Start Manual Attendance Session" size="2xl">
+        <form onSubmit={handleStartSession} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="sessionDate" className="block mb-2 text-sm font-medium text-gray-700">Tanggal Sesi</label>
+              <input type="date" id="sessionDate" name="sessionDate" defaultValue={getTodayString()} required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label htmlFor="department" className="block mb-2 text-sm font-medium text-gray-700">Departemen</label>
+              <select id="department" name="department" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {departmentOpts.map(div => <option key={div} value={div}>{div}</option>)}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="workerType" className="block mb-2 text-sm font-medium text-gray-700">Tipe Worker (Regulasi)</label>
+              <select id="workerType" name="workerType" className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="Daily Worker Reguler">Daily Worker Reguler</option>
+                <option value="Daily Worker Oncall">Daily Worker Oncall</option>
+                <option value="Operator">Operator</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="shiftTime" className="block mb-2 text-sm font-medium text-gray-700">Shift Jam (WIB)</label>
+              <select id="shiftTime" name="shiftTime" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {shiftTimeOpts.map(time => (<option key={time} value={time}>{time}</option>))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="shiftId" className="block mb-2 text-sm font-medium text-gray-700">Shift ID</label>
+               <select id="shiftId" name="shiftId" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                 {shiftIdOpts.map(shift => (<option key={shift} value={shift}>{shift}</option>))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="planMpp" className="block mb-2 text-sm font-medium text-gray-700">Plan MPP</label>
+              <input type="number" id="planMpp" name="planMpp" min="1" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
           </div>
-          <div>
-            <label htmlFor="division" className="block mb-2 text-sm font-medium text-gray-700">Divisi</label>
-            <select id="division" name="division" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              {divisionOpts.map(div => <option key={div} value={div}>{div}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="shiftTime" className="block mb-2 text-sm font-medium text-gray-700">Shift Jam (WIB)</label>
-            <select id="shiftTime" name="shiftTime" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              {shiftTimeOpts.map(time => (<option key={time} value={time}>{time}</option>))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="shiftId" className="block mb-2 text-sm font-medium text-gray-700">Shift ID</label>
-             <select id="shiftId" name="shiftId" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
-               {shiftIdOpts.map(shift => (<option key={shift} value={shift}>{shift}</option>))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="planMpp" className="block mb-2 text-sm font-medium text-gray-700">Plan MPP</label>
-            <input type="number" id="planMpp" name="planMpp" min="1" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div className="pt-4">
+          <div className="pt-2">
             <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">
               Start Session
             </button>

@@ -5,9 +5,9 @@ export interface Worker {
   fullName: string;
   nik: string;
   phone: string;
-  contractType: 'Daily Worker Vendor';
+  contractType: 'Daily Worker Vendor - Nexus';
   department: string;
-  workerType?: 'Daily Worker Oncall' | 'Daily Worker Reguler' | 'Operator'; // Added field
+  workerType?: 'Daily Worker Oncall' | 'Daily Worker Reguler' | 'Operator';
   createdAt: string;
   status: 'Active' | 'Non Active' | 'Blacklist';
 }
@@ -28,7 +28,8 @@ export interface AttendanceRecord {
 export interface AttendanceSession {
   id: string; // Unique identifier for the session
   date: string; // YYYY-MM-DD
-  division: string;
+  department: string;
+  workerType?: 'Daily Worker Oncall' | 'Daily Worker Reguler' | 'Operator';
   shiftTime: string;
   shiftId: string;
   planMpp: number;
@@ -40,6 +41,6 @@ export interface AttendanceSession {
 
 export interface MasterData {
     id: number;
-    category: 'DIVISION' | 'SHIFT_TIME' | 'SHIFT_ID';
+    category: 'DEPARTMENT' | 'SHIFT_TIME' | 'SHIFT_ID';
     value: string;
 }

@@ -9,12 +9,14 @@ import Modal from '../components/Modal';
 import useLocalStorage from '../hooks/useLocalStorage';
 
 const Settings: React.FC = () => {
-    const [divisions, setDivisions] = useState<MasterData[]>([]);
+    const [departments, setDepartments] = useState<MasterData[]>([]);
     const [shiftTimes, setShiftTimes] = useState<MasterData[]>([]);
     const [shiftIds, setShiftIds] = useState<MasterData[]>([]);
+    const [workerTypes, setWorkerTypes] = useState<MasterData[]>([]);
+    const [contractTypes, setContractTypes] = useState<MasterData[]>([]);
     const [loading, setLoading] = useState(true);
     const [newItemValue, setNewItemValue] = useState('');
-    const [activeTab, setActiveTab] = useState<'DIVISION' | 'SHIFT_TIME' | 'SHIFT_ID'>('DIVISION');
+    const [activeTab, setActiveTab] = useState<'DEPARTMENT' | 'SHIFT_TIME' | 'SHIFT_ID' | 'WORKER_TYPE' | 'CONTRACT_TYPE'>('DEPARTMENT');
     const [actionLoading, setActionLoading] = useState(false);
     const [itemToDelete, setItemToDelete] = useState<MasterData | null>(null);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -30,9 +32,11 @@ const Settings: React.FC = () => {
         setLoading(true);
         const { data, error } = await supabase.from('master_data').select('*').order('value', { ascending: true });
         if (data) {
-            setDivisions(data.filter(d => d.category === 'DIVISION'));
+            setDepartments(data.filter(d => d.category === 'DEPARTMENT'));
             setShiftTimes(data.filter(d => d.category === 'SHIFT_TIME'));
             setShiftIds(data.filter(d => d.category === 'SHIFT_ID'));
+            setWorkerTypes(data.filter(d => d.category === 'WORKER_TYPE'));
+            setContractTypes(data.filter(d => d.category === 'CONTRACT_TYPE'));
         }
         if (error) {
             console.error("Error fetching master data (Make sure table 'master_data' exists):", error);
@@ -84,10 +88,12 @@ const Settings: React.FC = () => {
     };
 
     const updateLocalState = (item: MasterData, action: 'add' | 'delete') => {
-        const listMap = {
-            'DIVISION': { get: divisions, set: setDivisions },
+        const listMap: Record<string, { get: MasterData[], set: React.Dispatch<React.SetStateAction<MasterData[]>> }> = {
+            'DEPARTMENT': { get: departments, set: setDepartments },
             'SHIFT_TIME': { get: shiftTimes, set: setShiftTimes },
-            'SHIFT_ID': { get: shiftIds, set: setShiftIds }
+            'SHIFT_ID': { get: shiftIds, set: setShiftIds },
+            'WORKER_TYPE': { get: workerTypes, set: setWorkerTypes },
+            'CONTRACT_TYPE': { get: contractTypes, set: setContractTypes }
         };
         
         const target = listMap[item.category];
@@ -101,8 +107,10 @@ const Settings: React.FC = () => {
     };
 
     const handleDownloadTemplate = () => {
-        const exampleValue = activeTab === 'DIVISION' ? 'NAMA DIVISI BARU' 
+        const exampleValue = activeTab === 'DEPARTMENT' ? 'NAMA DEPARTEMEN BARU' 
                            : activeTab === 'SHIFT_TIME' ? '08:00 - 17:00' 
+                           : activeTab === 'WORKER_TYPE' ? 'Tipe Worker Baru'
+                           : activeTab === 'CONTRACT_TYPE' ? 'Tipe Kontrak Baru'
                            : 'SOCSTROPSxxxx';
         
         const data = [
@@ -136,8 +144,10 @@ const Settings: React.FC = () => {
                     return;
                 }
 
-                const currentList = activeTab === 'DIVISION' ? divisions 
+                const currentList = activeTab === 'DEPARTMENT' ? departments 
                                   : activeTab === 'SHIFT_TIME' ? shiftTimes 
+                                  : activeTab === 'WORKER_TYPE' ? workerTypes
+                                  : activeTab === 'CONTRACT_TYPE' ? contractTypes
                                   : shiftIds;
                 
                 const existingValues = new Set(currentList.map(item => item.value.toLowerCase()));
@@ -230,14 +240,14 @@ const Settings: React.FC = () => {
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
                 <div className="p-6 border-b">
                     <h2 className="text-lg font-bold text-gray-800 mb-1">Pengaturan Master Data</h2>
-                    <p className="text-sm text-gray-500">Kelola daftar pilihan Divisi, Jam Shift, dan Shift ID agar muncul di menu Absensi.</p>
+                    <p className="text-sm text-gray-500">Kelola daftar pilihan Departemen, Jam Shift, dan Shift ID agar muncul di menu Absensi.</p>
                 </div>
                 <div className="bg-blue-600 p-1 flex gap-1 overflow-x-auto no-scrollbar">
                     <button 
-                        onClick={() => setActiveTab('DIVISION')}
-                        className={`flex-1 min-w-[120px] px-4 py-3 font-black text-xs uppercase tracking-widest transition-all rounded-lg ${activeTab === 'DIVISION' ? 'bg-white text-blue-600 shadow-inner' : 'text-white hover:bg-white/10'}`}
+                        onClick={() => setActiveTab('DEPARTMENT')}
+                        className={`flex-1 min-w-[120px] px-4 py-3 font-black text-xs uppercase tracking-widest transition-all rounded-lg ${activeTab === 'DEPARTMENT' ? 'bg-white text-blue-600 shadow-inner' : 'text-white hover:bg-white/10'}`}
                     >
-                        Divisi ({divisions.length})
+                        Departemen ({departments.length})
                     </button>
                     <button 
                         onClick={() => setActiveTab('SHIFT_TIME')}
@@ -250,6 +260,18 @@ const Settings: React.FC = () => {
                         className={`flex-1 min-w-[120px] px-4 py-3 font-black text-xs uppercase tracking-widest transition-all rounded-lg ${activeTab === 'SHIFT_ID' ? 'bg-white text-blue-600 shadow-inner' : 'text-white hover:bg-white/10'}`}
                     >
                         Shift ID ({shiftIds.length})
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('WORKER_TYPE')}
+                        className={`flex-1 min-w-[120px] px-4 py-3 font-black text-xs uppercase tracking-widest transition-all rounded-lg ${activeTab === 'WORKER_TYPE' ? 'bg-white text-blue-600 shadow-inner' : 'text-white hover:bg-white/10'}`}
+                    >
+                        Worker Type ({workerTypes.length})
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('CONTRACT_TYPE')}
+                        className={`flex-1 min-w-[120px] px-4 py-3 font-black text-xs uppercase tracking-widest transition-all rounded-lg ${activeTab === 'CONTRACT_TYPE' ? 'bg-white text-blue-600 shadow-inner' : 'text-white hover:bg-white/10'}`}
+                    >
+                        Contract Type ({contractTypes.length})
                     </button>
                 </div>
 
@@ -282,7 +304,7 @@ const Settings: React.FC = () => {
                             type="text" 
                             value={newItemValue}
                             onChange={e => setNewItemValue(e.target.value)}
-                            placeholder={`Ketik manual ${activeTab === 'DIVISION' ? 'Nama Divisi' : activeTab === 'SHIFT_TIME' ? 'Jam (ex: 08:00 - 17:00)' : 'Kode Shift ID'}...`}
+                            placeholder={`Ketik manual ${activeTab === 'DEPARTMENT' ? 'Nama Departemen' : activeTab === 'SHIFT_TIME' ? 'Jam (ex: 08:00 - 17:00)' : activeTab === 'WORKER_TYPE' ? 'Tipe Worker' : activeTab === 'CONTRACT_TYPE' ? 'Tipe Kontrak' : 'Kode Shift ID'}...`}
                             className="flex-1 bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button 
@@ -297,8 +319,10 @@ const Settings: React.FC = () => {
                     {loading ? (
                         <div className="text-center py-8 text-gray-500 animate-pulse">Memuat data...</div>
                     ) : (
-                        activeTab === 'DIVISION' ? renderList(divisions) :
+                        activeTab === 'DEPARTMENT' ? renderList(departments) :
                         activeTab === 'SHIFT_TIME' ? renderList(shiftTimes) :
+                        activeTab === 'WORKER_TYPE' ? renderList(workerTypes) :
+                        activeTab === 'CONTRACT_TYPE' ? renderList(contractTypes) :
                         renderList(shiftIds)
                     )}
                 </div>

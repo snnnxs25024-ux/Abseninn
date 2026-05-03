@@ -157,6 +157,7 @@ const App: React.FC = () => {
             phone: w.phone,
             contractType: w.contract_type,
             department: w.department,
+            workerType: w.worker_type,
             createdAt: w.created_at || new Date().toISOString(),
             status: w.status,
         }));
@@ -184,10 +185,11 @@ const App: React.FC = () => {
             return {
                 id: session.id,
                 date: session.date,
-                division: session.division,
+                department: session.department,
                 shiftTime: session.shift_time,
                 shiftId: session.shift_id,
                 planMpp: session.plan_mpp,
+                workerType: session.worker_type,
                 status: session.status,
                 session_type: session.session_type,
                 auto_close: session.auto_close,
@@ -268,9 +270,9 @@ const App: React.FC = () => {
                 if (sessionIndex > -1) return newHistory; // Already exists
                 const newSessionData = payload.new;
                 const newSession: AttendanceSession = {
-                    id: newSessionData.id, date: newSessionData.date, division: newSessionData.division,
+                    id: newSessionData.id, date: newSessionData.date, department: newSessionData.department,
                     shiftTime: newSessionData.shift_time, shiftId: newSessionData.shift_id,
-                    planMpp: newSessionData.plan_mpp, status: newSessionData.status,
+                    planMpp: newSessionData.plan_mpp, workerType: newSessionData.worker_type, status: newSessionData.status,
                     session_type: newSessionData.session_type, auto_close: newSessionData.auto_close,
                     records: [],
                 };
@@ -280,9 +282,9 @@ const App: React.FC = () => {
                     const updatedSessionData = payload.new;
                     newHistory[sessionIndex] = {
                         ...newHistory[sessionIndex], // keep records
-                        date: updatedSessionData.date, division: updatedSessionData.division,
+                        date: updatedSessionData.date, department: updatedSessionData.department,
                         shiftTime: updatedSessionData.shift_time, shiftId: updatedSessionData.shift_id,
-                        planMpp: updatedSessionData.plan_mpp, status: updatedSessionData.status,
+                        planMpp: updatedSessionData.plan_mpp, workerType: updatedSessionData.worker_type, status: updatedSessionData.status,
                         session_type: updatedSessionData.session_type, auto_close: updatedSessionData.auto_close,
                     };
                     return [...newHistory];

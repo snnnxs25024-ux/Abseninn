@@ -89,10 +89,11 @@ const PublicAttendance: React.FC = () => {
         const sessionState: AttendanceSession = {
             id: sessionData.id,
             date: sessionData.date,
-            division: sessionData.division,
+            department: sessionData.department,
             shiftTime: sessionData.shift_time,
             shiftId: sessionData.shift_id,
             planMpp: sessionData.plan_mpp,
+            workerType: sessionData.worker_type,
             status: sessionData.status,
             session_type: sessionData.session_type,
             auto_close: sessionData.auto_close,
@@ -102,7 +103,7 @@ const PublicAttendance: React.FC = () => {
         
         const { data: workerData, error: workerError } = await supabase
             .from('workers')
-            .select('id, ops_id, full_name, department, status')
+            .select('id, ops_id, full_name, department, status, worker_type')
             .eq('status', 'Active');
 
         if (workerError) {
@@ -125,8 +126,9 @@ const PublicAttendance: React.FC = () => {
             opsId: w.ops_id,
             fullName: w.full_name,
             department: w.department,
+            workerType: w.worker_type,
             status: w.status,
-            nik: '', phone: '', contractType: 'Daily Worker Vendor', createdAt: '',
+            nik: '', phone: '', contractType: 'Daily Worker Vendor - Nexus', createdAt: '',
         }));
         setWorkers(typedWorkers);
         setDataLoading(false);
@@ -194,6 +196,14 @@ const PublicAttendance: React.FC = () => {
       if(!worker) {
           playSound('error');
           setMessage("OpsID / Nama tidak ditemukan atau status Non-Aktif.");
+          setStatus('error');
+          return;
+      }
+
+      // VALIDATION: Check Worker Type if session is restricted
+      if (session.workerType && worker.workerType !== session.workerType) {
+          playSound('error');
+          setMessage(`Maaf, sesi ini khusus untuk "${session.workerType}". Anda terdaftar sebagai "${worker.workerType || 'Reguler'}".`);
           setStatus('error');
           return;
       }
@@ -385,7 +395,12 @@ const PublicAttendance: React.FC = () => {
           <div className="p-8">
               <div className="mb-8 text-center border-b border-gray-100 pb-6">
                   <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-2">Live Session</p>
-                  <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight">{session?.division}</h2>
+                  <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight">{session?.department}</h2>
+                  {session?.workerType && (
+                      <p className="inline-block mt-2 px-2 py-0.5 rounded-lg border text-[10px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 border-blue-100">
+                          {session.workerType}
+                      </p>
+                  )}
                   <p className="text-gray-500 font-bold text-sm mt-1">{session?.date} | {session?.shiftTime}</p>
               </div>
 

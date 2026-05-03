@@ -23,7 +23,7 @@ const defaultShiftIds = [
     'SOCSTROPS1221', 'SOCSTROPS1322', 'SOCSTROPS1423', 'SOCSTROPS1500', 'SOCSTROPS1601', 'SOCSTROPS1702',
     'SOCSTROPS1803', 'SOCSTROPS1904', 'SOCSTROPS2005', 'SOCSTROPS2106', 'SOCSTROPS2207', 'SOCSTROPS2308',
 ];
-const defaultDivisions = ['ASM2', 'CACHE', 'TP SUNTER 1', 'TP SUNTER 2', 'INVENTORY', 'RETURN'];
+const defaultDepartments = ['ASM2', 'CACHE', 'TP SUNTER 1', 'TP SUNTER 2', 'INVENTORY', 'RETURN'];
 const defaultShiftTimes = Array.from({ length: 24 }, (_, i) => {
     const startHour = i;
     const endHour = (startHour + 9) % 24;
@@ -45,20 +45,23 @@ const OpenList: React.FC<OpenListProps> = ({ workers, setCurrentPage, setAutoOpe
 
   // Dynamic Options
   const [shiftIdOpts, setShiftIdOpts] = useState<string[]>(defaultShiftIds);
-  const [divisionOpts, setDivisionOpts] = useState<string[]>(defaultDivisions);
+  const [departmentOpts, setDepartmentOpts] = useState<string[]>(defaultDepartments);
   const [shiftTimeOpts, setShiftTimeOpts] = useState<string[]>(defaultShiftTimes);
+  const [workerTypeOpts, setWorkerTypeOpts] = useState<string[]>(["Daily Worker Reguler", "Daily Worker Oncall", "Operator"]);
 
   useEffect(() => {
     const fetchMasterOptions = async () => {
         const { data } = await supabase.from('master_data').select('*');
         if (data && data.length > 0) {
-            const divs = data.filter(d => d.category === 'DIVISION').map(d => d.value);
+            const divs = data.filter(d => d.category === 'DEPARTMENT').map(d => d.value);
             const times = data.filter(d => d.category === 'SHIFT_TIME').map(d => d.value);
             const ids = data.filter(d => d.category === 'SHIFT_ID').map(d => d.value);
+            const wTypes = data.filter(d => d.category === 'WORKER_TYPE').map(d => d.value);
             
-            if (divs.length > 0) setDivisionOpts(divs);
+            if (divs.length > 0) setDepartmentOpts(divs);
             if (times.length > 0) setShiftTimeOpts(times);
             if (ids.length > 0) setShiftIdOpts(ids);
+            if (wTypes.length > 0) setWorkerTypeOpts(wTypes);
         }
     };
     fetchMasterOptions();
@@ -85,10 +88,11 @@ const OpenList: React.FC<OpenListProps> = ({ workers, setCurrentPage, setAutoOpe
         const newActiveSession: AttendanceSession = {
           id: data.id,
           date: data.date,
-          division: data.division,
+          department: data.department,
           shiftTime: data.shift_time,
           shiftId: data.shift_id,
           planMpp: data.plan_mpp,
+          workerType: data.worker_type,
           status: data.status,
           session_type: data.session_type,
           auto_close: data.auto_close,
@@ -196,9 +200,10 @@ const OpenList: React.FC<OpenListProps> = ({ workers, setCurrentPage, setAutoOpe
     const sessionDbData = {
       id: newSessionId,
       date: formData.get('sessionDate') as string,
-      division: formData.get('division') as string,
+      department: formData.get('department') as string,
       shift_time: formData.get('shiftTime') as string,
       shift_id: formData.get('shiftId') as string,
+      worker_type: formData.get('workerType') as string,
       plan_mpp: parseInt(formData.get('planMpp') as string, 10),
       auto_close: autoClose,
       status: 'OPEN' as const,
@@ -219,10 +224,11 @@ const OpenList: React.FC<OpenListProps> = ({ workers, setCurrentPage, setAutoOpe
       const sessionState: AttendanceSession = {
           id: sessionDbData.id,
           date: sessionDbData.date,
-          division: sessionDbData.division,
+          department: sessionDbData.department,
           shiftTime: sessionDbData.shift_time,
           shiftId: sessionDbData.shift_id,
           planMpp: sessionDbData.plan_mpp,
+          workerType: sessionDbData.worker_type as any,
           status: sessionDbData.status,
           session_type: sessionDbData.session_type,
           auto_close: sessionDbData.auto_close,
@@ -300,9 +306,15 @@ const OpenList: React.FC<OpenListProps> = ({ workers, setCurrentPage, setAutoOpe
                         <input type="date" name="sessionDate" defaultValue={new Date().toISOString().split('T')[0]} required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500" />
                     </div>
                     <div>
-                        <label className="block mb-2 text-sm font-medium text-gray-700 font-bold uppercase tracking-wider text-[10px]">Divisi</label>
-                        <select name="division" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
-                          {divisionOpts.map(div => <option key={div} value={div}>{div}</option>)}
+                        <label className="block mb-2 text-sm font-medium text-gray-700 font-bold uppercase tracking-wider text-[10px]">Departemen</label>
+                        <select name="department" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
+                          {departmentOpts.map(div => <option key={div} value={div}>{div}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-700 font-bold uppercase tracking-wider text-[10px]">Tipe Worker (Regulasi)</label>
+                        <select name="workerType" className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
+                          {workerTypeOpts.map(wt => <option key={wt} value={wt}>{wt}</option>)}
                         </select>
                     </div>
                     <div>
@@ -353,7 +365,18 @@ const OpenList: React.FC<OpenListProps> = ({ workers, setCurrentPage, setAutoOpe
                             <span className="bg-green-200 text-green-800 text-[10px] font-black px-2 py-1 rounded-full animate-pulse uppercase tracking-widest">LIVE OPEN</span>
                             {activeSession.auto_close && <span className="bg-blue-200 text-blue-800 text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-widest">Auto-Close ON</span>}
                           </div>
-                          <h2 className="text-2xl font-black text-gray-800 mt-2 uppercase tracking-tight">{activeSession.division}</h2>
+                          <h2 className="text-2xl font-black text-gray-800 mt-2 uppercase tracking-tight">
+                              {activeSession.department}
+                              {activeSession.workerType && (
+                                  <span className={`ml-3 text-xs px-2 py-0.5 rounded-full border align-middle ${
+                                      activeSession.workerType === 'Daily Worker Oncall' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                      activeSession.workerType === 'Operator' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                      'bg-green-100 text-green-700 border-green-200'
+                                  }`}>
+                                      {activeSession.workerType === 'Daily Worker Oncall' ? 'Oncall' : activeSession.workerType === 'Operator' ? 'Operator' : 'Reguler'}
+                                  </span>
+                              )}
+                          </h2>
                           <p className="text-gray-600 font-bold">{activeSession.date} | {activeSession.shiftTime}</p>
                           <p className="text-xs text-gray-500 font-mono mt-1">ID: {activeSession.shiftId}</p>
                       </div>
