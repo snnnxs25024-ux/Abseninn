@@ -521,45 +521,45 @@ const Attendance: React.FC<AttendanceProps> = ({
       )}
 
       <Modal isOpen={isModalOpen && !activeSession} onClose={() => setIsModalOpen(false)} title="Start Manual Attendance Session" size="2xl">
-        <form onSubmit={handleStartSession} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleStartSession} className="space-y-3 md:space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div>
-              <label htmlFor="sessionDate" className="block mb-2 text-sm font-medium text-gray-700">Tanggal Sesi</label>
-              <input type="date" id="sessionDate" name="sessionDate" defaultValue={getTodayString()} required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <label htmlFor="sessionDate" className="block mb-1 md:mb-2 text-xs md:text-sm font-medium text-gray-700">Tanggal Sesi</label>
+              <input type="date" id="sessionDate" name="sessionDate" defaultValue={getTodayString()} required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label htmlFor="department" className="block mb-2 text-sm font-medium text-gray-700">Departemen</label>
-              <select id="department" name="department" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <label htmlFor="department" className="block mb-1 md:mb-2 text-xs md:text-sm font-medium text-gray-700">Departemen</label>
+              <select id="department" name="department" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
                 {departmentOpts.map(div => <option key={div} value={div}>{div}</option>)}
               </select>
             </div>
             <div>
-              <label htmlFor="workerType" className="block mb-2 text-sm font-medium text-gray-700">Tipe Worker (Regulasi)</label>
-              <select id="workerType" name="workerType" className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <label htmlFor="workerType" className="block mb-1 md:mb-2 text-xs md:text-sm font-medium text-gray-700">Tipe Worker (Regulasi)</label>
+              <select id="workerType" name="workerType" className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="Daily Worker Reguler">Daily Worker Reguler</option>
                 <option value="Daily Worker Oncall">Daily Worker Oncall</option>
                 <option value="Operator">Operator</option>
               </select>
             </div>
             <div>
-              <label htmlFor="shiftTime" className="block mb-2 text-sm font-medium text-gray-700">Shift Jam (WIB)</label>
-              <select id="shiftTime" name="shiftTime" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <label htmlFor="shiftTime" className="block mb-1 md:mb-2 text-xs md:text-sm font-medium text-gray-700">Shift Jam (WIB)</label>
+              <select id="shiftTime" name="shiftTime" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
                 {shiftTimeOpts.map(time => (<option key={time} value={time}>{time}</option>))}
               </select>
             </div>
             <div>
-              <label htmlFor="shiftId" className="block mb-2 text-sm font-medium text-gray-700">Shift ID</label>
-               <select id="shiftId" name="shiftId" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <label htmlFor="shiftId" className="block mb-1 md:mb-2 text-xs md:text-sm font-medium text-gray-700">Shift ID</label>
+               <select id="shiftId" name="shiftId" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
                  {shiftIdOpts.map(shift => (<option key={shift} value={shift}>{shift}</option>))}
               </select>
             </div>
             <div>
-              <label htmlFor="planMpp" className="block mb-2 text-sm font-medium text-gray-700">Plan MPP</label>
-              <input type="number" id="planMpp" name="planMpp" min="1" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <label htmlFor="planMpp" className="block mb-1 md:mb-2 text-xs md:text-sm font-medium text-gray-700">Plan MPP</label>
+              <input type="number" id="planMpp" name="planMpp" min="1" required className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
-          <div className="pt-2">
-            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">
+          <div className="pt-1 md:pt-2">
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 md:py-3 rounded-lg transition-colors">
               Start Session
             </button>
           </div>

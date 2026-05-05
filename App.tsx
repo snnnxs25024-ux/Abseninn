@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react';
+import BottomNav from './components/BottomNav';
 import Sidebar from './components/Sidebar';
+import Modal from './components/Modal';
 import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Database from './pages/Database';
@@ -113,23 +115,25 @@ const App: React.FC = () => {
   const [activeSession, setActiveSession] = useState<Omit<AttendanceSession, 'records' | 'id'> | null>(null);
   const [activeRecords, setActiveRecords] = useState<Omit<AttendanceRecord, 'id' | 'checkout_timestamp' | 'manual_status' | 'is_takeout'>[]>([]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (customStartDate?: Date, customEndDate?: Date) => {
     if (!session) return;
     setLoading(true); 
     setError(null);
 
     try {
-        const fetchAll = async (table: string, select: string) => {
+        const fetchAll = async (table: string, select: string, dateColumn?: string, startDate?: string, endDate?: string) => {
             let allData: any[] = [];
             let lastData: any[] | null = null;
             let page = 0;
             const pageSize = 1000;
 
             do {
-                const { data, error } = await supabase
-                    .from(table)
-                    .select(select)
-                    .range(page * pageSize, (page + 1) * pageSize - 1);
+                let query = supabase.from(table).select(select);
+                if (dateColumn && startDate && endDate) {
+                    query = query.gte(dateColumn, startDate).lte(dateColumn, endDate);
+                }
+                
+                const { data, error } = await query.range(page * pageSize, (page + 1) * pageSize - 1);
 
                 if (error) throw error;
 
@@ -146,8 +150,46 @@ const App: React.FC = () => {
         };
 
         const workersData = await fetchAll('workers', '*');
-        const sessionsData = await fetchAll('attendance_sessions', '*');
-        const recordsData = await fetchAll('attendance_records', 'id, session_id, worker_id, timestamp, checkout_timestamp, manual_status, is_takeout, scan_timestamp, is_arrived');
+        
+        // Calculate default dates if not provided (start of current month to end of current month)
+        const now = new Date();
+        const effectiveStart = customStartDate || new Date(now.getFullYear(), now.getMonth(), 1);
+        const effectiveEnd = customEndDate || new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        // Format dates as YYYY-MM-DD to match the generic 'date' column in database
+        const formatDateForDB = (d: Date) => {
+            return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+        };
+
+        const startStr = formatDateForDB(effectiveStart);
+        const endStr = formatDateForDB(effectiveEnd);
+
+        const sessionsData = await fetchAll('attendance_sessions', '*', 'date', startStr, endStr);
+        
+        // Fetch ALL attendance_records globally since extracting them efficiently requires 
+        // joining or fetching all and we are optimizing sessions. 
+        // ACTUALLY wait! To optimize we SHOULD only fetch records for the filtered sessions.
+        // We will do this by using IN clause or just fetching all if there are very few sessions?
+        // Since we cannot do subqueries easily in basic select, let's just fetch all records
+        // for now or better, retrieve them by getting records where session_id is in sessionsData
+        const sessionIds = sessionsData.map((s: any) => s.id);
+        
+        // Only fetch records for the filtered sessions
+        let recordsData: any[] = [];
+        if (sessionIds.length > 0) {
+            // Chunk session IDs if there are too many for a single IN clause
+            const chunkSize = 200;
+            for (let i = 0; i < sessionIds.length; i += chunkSize) {
+                const chunk = sessionIds.slice(i, i + chunkSize);
+                const { data: chunkRecords, error: recError } = await supabase
+                    .from('attendance_records')
+                    .select('id, session_id, worker_id, timestamp, checkout_timestamp, manual_status, is_takeout, scan_timestamp, is_arrived')
+                    .in('session_id', chunk);
+                
+                if (recError) throw recError;
+                if (chunkRecords) recordsData = [...recordsData, ...chunkRecords];
+            }
+        }
         
         const typedWorkers: Worker[] = workersData.map((w: any) => ({
             id: w.id,
@@ -357,6 +399,12 @@ const App: React.FC = () => {
     setAutoOpenSessionId(null);
   };
 
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const confirmLogout = async () => {
+    setIsLogoutModalOpen(false);
+    await supabase.auth.signOut();
+  };
+
   if (isPublicMode) {
       return <PublicAttendance />;
   }
@@ -457,20 +505,50 @@ const App: React.FC = () => {
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
         />
-        <main className="flex-1 flex flex-col min-h-screen overflow-hidden transition-all duration-300">
-            <div className="lg:hidden p-4 flex justify-between items-center bg-white border-b shrink-0">
+        <main className="flex-1 flex flex-col min-h-screen overflow-hidden transition-all duration-300 pb-16 lg:pb-0">
+            <div className="lg:hidden p-3 flex justify-between items-center bg-white border-b shrink-0">
             <div className="flex items-center gap-3">
                 <img src="https://i.imgur.com/79JL73s.png" alt="ABSENIN Logo" className="h-8 w-8 object-contain" />
                 <h1 className="text-lg font-black text-blue-600 leading-none tracking-tighter">ABSENIN</h1>
             </div>
-            <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors">
-                <Menu size={24} />
+            <button onClick={() => setIsLogoutModalOpen(true)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                <LogOut size={20} />
             </button>
             </div>
             <div className="flex-1 p-4 sm:p-6 lg:p-10 overflow-y-auto no-scrollbar">
                 {renderPage()}
             </div>
         </main>
+        <BottomNav currentPage={currentPage} setCurrentPage={setCurrentPage} />
+        <Modal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)} title="Konfirmasi Logout" size="sm" scrollable={false}>
+          <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <h3 className="text-lg leading-6 font-bold text-gray-900 mt-5">Keluar dari Sesi</h3>
+              <p className="text-sm text-gray-500 mt-2">
+                Apakah Anda yakin ingin keluar dari sistem?
+              </p>
+          </div>
+          <div className="mt-6 flex justify-center gap-3">
+              <button
+                  type="button"
+                  className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:text-sm"
+                  onClick={() => setIsLogoutModalOpen(false)}
+              >
+                  Batal
+              </button>
+              <button
+                  type="button"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:text-sm"
+                  onClick={confirmLogout}
+              >
+                  Ya, Keluar
+              </button>
+          </div>
+        </Modal>
         </div>
     </ToastProvider>
   );

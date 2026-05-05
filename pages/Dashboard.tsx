@@ -14,7 +14,7 @@ import { Download, Eye, Trash2, Copy, Edit, Printer, Search, Filter, Calendar, C
 interface DashboardProps {
     workers: Worker[];
     attendanceHistory: AttendanceSession[];
-    refreshData: () => void;
+    refreshData: (start?: Date, end?: Date) => void;
     setAttendanceHistory: React.Dispatch<React.SetStateAction<AttendanceSession[]>>;
     autoOpenSessionId?: string | null;
     clearAutoOpenSessionId: () => void;
@@ -185,6 +185,7 @@ const calculateWorkDuration = (checkin: string, checkout: string | null | undefi
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refreshData, setAttendanceHistory, autoOpenSessionId, clearAutoOpenSessionId }) => {
+    const initialMount = useRef(true);
     const [selectedSession, setSelectedSession] = useState<AttendanceSession | null>(null);
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const [isDeleteSessionModalOpen, setIsDeleteSessionModalOpen] = useState(false);
@@ -222,6 +223,34 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
         type: 'monthly',
         value: { month: new Date().getMonth(), year: new Date().getFullYear() }
     });
+
+    const [manageSearchQuery, setManageSearchQuery] = useState('');
+    
+    useEffect(() => {
+        if (initialMount.current) {
+            initialMount.current = false;
+            return;
+        }
+
+        let start: Date;
+        let end: Date;
+
+        if (activeFilter.type === 'monthly') {
+            start = new Date(activeFilter.value.year, activeFilter.value.month, 1);
+            end = new Date(activeFilter.value.year, activeFilter.value.month + 1, 0, 23, 59, 59);
+        } else if (activeFilter.type === 'daily') {
+            start = new Date(activeFilter.value + 'T00:00:00');
+            end = new Date(activeFilter.value + 'T23:59:59');
+        } else if (activeFilter.type === 'yearly') {
+            start = new Date(activeFilter.value, 0, 1);
+            end = new Date(activeFilter.value, 11, 31, 23, 59, 59);
+        } else {
+            start = new Date(activeFilter.value.start + 'T00:00:00');
+            end = new Date(activeFilter.value.end + 'T23:59:59');
+        }
+
+        refreshData(start, end);
+    }, [activeFilter, refreshData]);
     
     const [manualAddSuggestions, setManualAddSuggestions] = useState<Worker[]>([]);
     const [manualAddHighlightedIndex, setManualAddHighlightedIndex] = useState(-1);
@@ -985,6 +1014,62 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
         link.download = `Absensi_${safeDepartment}_${selectedSession.date}.jpeg`;
         link.href = canvas.toDataURL('image/jpeg', 0.9);
         link.click();
+    };
+
+    const filteredManageRecords = useMemo(() => {
+        if (!selectedSession) return [];
+        if (!manageSearchQuery) return selectedSession.records;
+        const query = manageSearchQuery.toLowerCase();
+        return selectedSession.records.filter(record => 
+            record.opsId.toLowerCase().includes(query) || 
+            record.fullName.toLowerCase().includes(query)
+        );
+    }, [selectedSession, manageSearchQuery]);
+
+    const handleToggleAllArrival = async (check: boolean) => {
+        if (!selectedSession || filteredManageRecords.length === 0) return;
+        
+        const recordsToUpdate = filteredManageRecords.filter(r => (r.is_arrived ?? true) !== check);
+        if (recordsToUpdate.length === 0) return;
+        
+        const idsToUpdate = recordsToUpdate.map(r => r.id);
+
+        setLoadingAction(true);
+
+        setAttendanceHistory(prevHistory =>
+            prevHistory.map(session =>
+                session.id === selectedSession.id
+                    ? {
+                        ...session,
+                        records: session.records.map(r =>
+                            idsToUpdate.includes(r.id) ? { ...r, is_arrived: check } : r
+                        )
+                    }
+                    : session
+            )
+        );
+
+        setSelectedSession(prev => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                records: prev.records.map(r => 
+                    idsToUpdate.includes(r.id) ? { ...r, is_arrived: check } : r
+                )
+            };
+        });
+
+        const { error } = await supabase
+            .from('attendance_records')
+            .update({ is_arrived: check })
+            .in('id', idsToUpdate);
+
+        setLoadingAction(false);
+
+        if (error) {
+            showToast('Gagal update status batch: ' + error.message, { type: 'error', title: 'Error' });
+            refreshData(); // Revert on error
+        }
     };
 
     const displayedMonthReports = useMemo(() => {
@@ -1838,11 +1923,33 @@ Update Rekapan √`;
                         </div>
                         
                         {/* --- MIDDLE SECTION (Compact Table) --- */}
+                        <div className="mb-3 px-1">
+                            <input
+                                type="text"
+                                placeholder="Cari by OpsID atau Nama..."
+                                value={manageSearchQuery}
+                                onChange={(e) => setManageSearchQuery(e.target.value)}
+                                className="w-full md:w-1/3 bg-gray-50 border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
                         <div className="overflow-x-auto border rounded-xl shadow-sm">
                             <table className="w-full text-left text-xs">
                                 <thead className="bg-blue-600 text-white uppercase text-[10px] font-bold tracking-wider">
                                     <tr>
-                                        <th className="p-3 text-center">Kehadiran<br/>Fisik</th>
+                                        <th className="p-3 text-center">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <span>Kehadiran<br/>Fisik</span>
+                                                {filteredManageRecords.length > 0 && (
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={filteredManageRecords.every(r => r.is_arrived ?? true)}
+                                                        onChange={(e) => handleToggleAllArrival(e.target.checked)}
+                                                        className="w-3.5 h-3.5 rounded text-blue-800"
+                                                        title="Pilih / Batal Pilih Semua"
+                                                    />
+                                                )}
+                                            </div>
+                                        </th>
                                         <th className="p-3 text-center">Tipe</th>
                                         <th className="p-3">OpsID</th>
                                         <th className="p-3">Nama Lengkap</th>
@@ -1856,7 +1963,7 @@ Update Rekapan √`;
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-xs">
-                                    {selectedSession.records.map(record => {
+                                    {filteredManageRecords.map(record => {
                                         const worker = workers.find(w => w.id === record.workerId);
                                         const wType = worker?.workerType || 'Daily Worker Reguler';
                                         const now = new Date().getTime();
