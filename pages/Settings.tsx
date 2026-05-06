@@ -1,14 +1,18 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Trash2, Upload, Plus, Volume2, VolumeX } from 'lucide-react';
+import { Download, Trash2, Upload, Plus, Volume2, VolumeX, ChevronRight, ArrowLeft, Palette, HelpCircle, Database, Phone, MessageCircle, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabaseClient';
 import { MasterData } from '../types';
 import { useToast } from '../hooks/useToast';
 import Modal from '../components/Modal';
 import useLocalStorage from '../hooks/useLocalStorage';
+import { useTheme } from '../hooks/useTheme';
+
+type SettingsView = 'MAIN' | 'MASTER_DATA' | 'SOUND' | 'THEME' | 'HELP';
 
 const Settings: React.FC = () => {
+    const [view, setView] = useState<SettingsView>('MAIN');
     const [departments, setDepartments] = useState<MasterData[]>([]);
     const [shiftTimes, setShiftTimes] = useState<MasterData[]>([]);
     const [shiftIds, setShiftIds] = useState<MasterData[]>([]);
@@ -23,10 +27,14 @@ const Settings: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { showToast } = useToast();
     const [isSoundEnabled, setIsSoundEnabled] = useLocalStorage('isSoundEnabled', true);
+    const [isDarkMode, setIsDarkMode] = useTheme();
+    const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
 
     useEffect(() => {
-        fetchMasterData();
-    }, []);
+        if (view === 'MASTER_DATA') {
+            fetchMasterData();
+        }
+    }, [view]);
 
     const fetchMasterData = async () => {
         setLoading(true);
@@ -187,7 +195,7 @@ const Settings: React.FC = () => {
 
     const renderList = (items: MasterData[]) => (
         <div className="bg-white rounded-b-lg shadow border border-gray-200 overflow-hidden">
-            <ul className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+            <ul className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
                 {items.length === 0 ? (
                     <li className="p-4 text-center text-gray-400 italic">Belum ada data. Tambahkan di atas.</li>
                 ) : (
@@ -208,21 +216,39 @@ const Settings: React.FC = () => {
         </div>
     );
 
-    return (
-        <div className="space-y-6 max-w-4xl mx-auto">
-            <h1 className="text-3xl font-bold text-gray-800">Pengaturan</h1>
-            
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-                <h2 className="text-lg font-bold text-gray-800 mb-1">Pengaturan Aplikasi</h2>
-                <p className="text-sm text-gray-500 mb-4">Ubah preferensi umum aplikasi.</p>
-                <div className="border-t border-gray-100 pt-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            {isSoundEnabled ? <Volume2 size={24} className="text-blue-500" /> : <VolumeX size={24} className="text-gray-400" />}
-                            <div>
-                                <h3 className="font-bold text-gray-700">Efek Suara</h3>
-                                <p className="text-xs text-gray-500">Aktifkan suara notifikasi saat absensi berhasil.</p>
+    const renderMainContent = () => (
+        <div className="pb-8 bg-transparent sm:bg-white sm:dark:bg-gray-800 sm:p-6 sm:rounded-xl sm:shadow-sm sm:border sm:border-gray-200 sm:dark:border-gray-700 transition-colors">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mb-8 pt-2">Pengaturan</h1>
+
+            {/* Sistem Group */}
+            <div className="mb-8">
+                <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-4 ml-1">Sistem</h2>
+                <div className="space-y-6">
+                    <div 
+                        onClick={() => setView('MASTER_DATA')}
+                        className="flex justify-between items-center cursor-pointer group px-1"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="bg-blue-500 text-white p-2 rounded-full shadow-sm">
+                                <Database size={20} />
                             </div>
+                            <span className="font-bold text-gray-800 dark:text-gray-100 text-[15px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Master Data</span>
+                        </div>
+                        <ChevronRight className="text-gray-400" size={20} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Preferensi Group */}
+            <div className="mb-8">
+                <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-4 ml-1">Preferensi</h2>
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center px-1">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-green-500 text-white p-2 rounded-full shadow-sm">
+                                <Volume2 size={20} />
+                            </div>
+                            <span className="font-bold text-gray-800 dark:text-gray-100 text-[15px]">Notifikasi Suara</span>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                             <input
@@ -231,17 +257,68 @@ const Settings: React.FC = () => {
                                 onChange={(e) => setIsSoundEnabled(e.target.checked)}
                                 className="sr-only peer"
                             />
-                            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-teal-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400 border-gray-100 dark:border-gray-600 outline-none"></div>
+                        </label>
+                    </div>
+                    
+                    <div className="flex justify-between items-center px-1">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-gray-800 dark:bg-gray-600 text-white p-2 rounded-full shadow-sm">
+                                <Palette size={20} />
+                            </div>
+                            <span className="font-bold text-gray-800 dark:text-gray-100 text-[15px]">Tema (Dark Mode)</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={isDarkMode}
+                                onChange={(e) => setIsDarkMode(e.target.checked)}
+                                className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400 border-gray-100 dark:border-gray-600 outline-none"></div>
                         </label>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                <div className="p-6 border-b">
-                    <h2 className="text-lg font-bold text-gray-800 mb-1">Pengaturan Master Data</h2>
-                    <p className="text-sm text-gray-500">Kelola daftar pilihan Departemen, Jam Shift, dan Shift ID agar muncul di menu Absensi.</p>
+            {/* Lainnya Group */}
+            <div className="mb-8">
+                <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-4 ml-1">Lainnya</h2>
+                <div className="space-y-6">
+                    <div 
+                        onClick={() => setView('HELP')}
+                        className="flex justify-between items-center cursor-pointer group px-1"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="bg-yellow-500 text-white p-2 rounded-full shadow-sm">
+                                <HelpCircle size={20} />
+                            </div>
+                            <span className="font-bold text-gray-800 dark:text-gray-100 text-[15px] group-hover:text-amber-500 transition-colors">Pusat Bantuan</span>
+                        </div>
+                        <ChevronRight className="text-gray-400" size={20} />
+                    </div>
                 </div>
+            </div>
+            
+            <div className="text-center mt-12 pb-4">
+                <p className="text-[12px] font-bold text-gray-400">App ver 1.0.0</p>
+            </div>
+        </div>
+    );
+
+    const renderMasterDataContent = () => (
+        <div className="space-y-6">
+            <div className="flex items-center gap-4 mb-6">
+                <button 
+                    onClick={() => setView('MAIN')} 
+                    className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800">Pengaturan Master Data</h1>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
                 <div className="bg-blue-600 p-1 flex gap-1 overflow-x-auto no-scrollbar">
                     <button 
                         onClick={() => setActiveTab('DEPARTMENT')}
@@ -275,7 +352,7 @@ const Settings: React.FC = () => {
                     </button>
                 </div>
 
-                <div className="p-6">
+                <div className="p-4 md:p-6">
                     <div className="flex flex-col sm:flex-row justify-end gap-2 mb-6 bg-gray-50 p-3 rounded-lg border border-gray-100">
                         <button 
                             onClick={handleDownloadTemplate}
@@ -299,18 +376,18 @@ const Settings: React.FC = () => {
                         />
                     </div>
 
-                    <form onSubmit={handleAdd} className="flex gap-2 mb-6">
+                    <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-2 mb-6">
                         <input 
                             type="text" 
                             value={newItemValue}
                             onChange={e => setNewItemValue(e.target.value)}
                             placeholder={`Ketik manual ${activeTab === 'DEPARTMENT' ? 'Nama Departemen' : activeTab === 'SHIFT_TIME' ? 'Jam (ex: 08:00 - 17:00)' : activeTab === 'WORKER_TYPE' ? 'Tipe Worker' : activeTab === 'CONTRACT_TYPE' ? 'Tipe Kontrak' : 'Kode Shift ID'}...`}
-                            className="flex-1 bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="flex-1 bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button 
                             type="submit" 
                             disabled={actionLoading || !newItemValue.trim()}
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 disabled:opacity-50 shrink-0"
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg flex justify-center items-center gap-2 disabled:opacity-50 shrink-0"
                         >
                             <Plus size={16} /> Tambah
                         </button>
@@ -335,11 +412,181 @@ const Settings: React.FC = () => {
                     <li>Fitur Import Excel akan otomatis melewati data yang sudah ada di database (tidak duplikat).</li>
                 </ul>
             </div>
+        </div>
+    );
+
+    const renderSoundContent = () => (
+        <div className="space-y-6">
+            <div className="flex items-center gap-4 mb-6">
+                <button 
+                    onClick={() => setView('MAIN')} 
+                    className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800">Pengaturan Suara</h1>
+            </div>
+
+             <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-3 rounded-lg ${isSoundEnabled ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                            {isSoundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-700 text-lg">Efek Suara Notifikasi</h3>
+                            <p className="text-sm text-gray-500">Aktifkan efek suara ketika berhasil melakukan absensi otomatis atau manual.</p>
+                        </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                            type="checkbox"
+                            checked={isSoundEnabled}
+                            onChange={(e) => setIsSoundEnabled(e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-14 h-7 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderThemeContent = () => (
+        <div className="space-y-6">
+            <div className="flex items-center gap-4 mb-6">
+                <button 
+                    onClick={() => setView('MAIN')} 
+                    className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800">Tema (Theme)</h1>
+            </div>
+
+             <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 text-center">
+                <Palette size={48} className="mx-auto text-purple-300 mb-4" />
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Segera Hadir</h3>
+                <p className="text-gray-500">Fitur kustomisasi tema terang/gelap sedang dalam tahap pengembangan.</p>
+            </div>
+        </div>
+    );
+
+    const renderHelpContent = () => (
+        <div className="space-y-6">
+            <div className="flex items-center gap-4 mb-6">
+                <button 
+                    onClick={() => setView('MAIN')} 
+                    className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-white">Pusat Bantuan</h1>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col items-center text-center hover:shadow-md transition-shadow">
+                    <div className="bg-blue-100 dark:bg-blue-900/50 p-4 rounded-full text-blue-600 dark:text-blue-400 mb-4">
+                        <FileText size={32} />
+                    </div>
+                    <h3 className="font-bold text-gray-800 dark:text-white mb-2">Panduan Pengguna</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Pelajari cara menggunakan berbagai fitur aplikasi ABSENIN.</p>
+                    <button 
+                        onClick={() => setIsGuideModalOpen(true)}
+                        className="mt-auto bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold py-2 px-4 rounded-lg w-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                    >
+                        Buka Panduan
+                    </button>
+                </div>
+                
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col items-center text-center hover:shadow-md transition-shadow">
+                    <div className="bg-green-100 dark:bg-green-900/50 p-4 rounded-full text-green-600 dark:text-green-400 mb-4">
+                        <MessageCircle size={32} />
+                    </div>
+                    <h3 className="font-bold text-gray-800 dark:text-white mb-2">Hubungi Dukungan</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Punya kendala teknis? Tim dukungan kami siap membantu Anda.</p>
+                    <div className="mt-auto w-full flex flex-col gap-2">
+                        <a 
+                            href="https://wa.me/6285890285218" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 font-semibold py-2 px-4 rounded-lg w-full hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Phone size={16} /> WhatsApp Kami
+                        </a>
+                        <a 
+                            href="mailto:sunan.iskandar36@gmail.com" 
+                            className="bg-gray-50 dark:bg-gray-700 flex-1 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 rounded-lg w-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <MessageCircle size={16} /> Kirim Email
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="max-w-4xl mx-auto pb-safe">
+            {view === 'MAIN' && renderMainContent()}
+            {view === 'MASTER_DATA' && renderMasterDataContent()}
+            {view === 'SOUND' && renderSoundContent()}
+            {view === 'THEME' && renderThemeContent()}
+            {view === 'HELP' && renderHelpContent()}
+            
+            <Modal isOpen={isGuideModalOpen} onClose={() => setIsGuideModalOpen(false)} title="Panduan Pengguna ABSENIN" size="2xl">
+                <div className="p-4 md:p-6 space-y-6 max-h-[70vh] overflow-y-auto no-scrollbar">
+                    
+                    <div className="space-y-2">
+                        <h3 className="font-bold text-lg text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-700 pb-2">1. Master Data (Persiapan Awal)</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                            Sebelum aplikasi dapat berjalan secara optimal, atur terlebih dahulu data dasar seperti <strong>Departemen</strong>, <strong>Shift Jam</strong>, <strong>Shift ID</strong>, dan <strong>Tipe Worker</strong> pada menu <strong>Pengaturan &gt; Master Data</strong>. Anda bisa menambahkannya satu per satu atau menggunakan fitur Import/Export Excel.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <h3 className="font-bold text-lg text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-700 pb-2">2. Data Base Karyawan</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                            Buka menu <strong>Data Base</strong> untuk mendaftarkan data karyawan (Ops ID, Nama, Tipe Worker, dll). Anda dapat menggunakan tombol <strong>Import Excel</strong> untuk memasukkan ratusan karyawan secara instan. Data dari menu ini akan digunakan sebagai rujukan utama ketika melakukan scan barcode atau mencari nama karyawan.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <h3 className="font-bold text-lg text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-700 pb-2">3. Absensi (Proses Inti)</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                            Di menu <strong>Absensi</strong>, buat "Sesi Absensi" baru dengan mengisi Tanggal, Shift, Departemen, dan target Plan MPP.
+                            <br/><br/>
+                            <strong>✅ Scan Barcode:</strong> Klik ikon 'Kamera Scanner' untuk membuka layar pemindai barcode. Setiap ID yang berhasil discan otomatis dianggap hadir.
+                            <br/>
+                            <strong>✅ Kehadiran Manual:</strong> Klik sesi list data yang ada lalu centang pada kolom 'Physical Attendance' apabila tidak bisa melakukan scan barcode. 
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <h3 className="font-bold text-lg text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-700 pb-2">4. Dashboard & Kelola Sesi</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                            Menu <strong>Dashboard</strong> merangkum seluruh aktivitas absensi dengan grafik interaktif. Anda juga dapat melihat sesi aktif di sana dan melakukan <strong>Manage Session</strong> (melihat detail partisipan, menandai kehadiran fisik manual, hingga menyalin data format WhatsApp/Excel).
+                        </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                        <h3 className="font-bold text-lg text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-700 pb-2">5. Open List & Laporan MPP</h3>
+                        <ul className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed list-disc list-inside space-y-2">
+                            <li><strong>Open List:</strong> Digunakan untuk memilah dengan cepat rincian data karyawan, menyalin seluruh absen harian, atau keperluan broadcast info.</li>
+                            <li><strong>MPP:</strong> Fitur rekap perbandingan antara target (Plan MPP) dengan Kehadiran Aktual. Alat ini sangat membantu HR / Tim Manajemen melihat performa kehadiran harian di suatu departemen.</li>
+                        </ul>
+                    </div>
+
+                    <div className="mt-8 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                        <button onClick={() => setIsGuideModalOpen(false)} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">Mengerti, Tutup Panduan</button>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal isOpen={isDeleteConfirmOpen} onClose={() => setIsDeleteConfirmOpen(false)} title="Konfirmasi Hapus" size="sm" scrollable={false}>
                 {itemToDelete && (
                     <div>
-                        <p className="text-gray-600">
+                        <p className="text-gray-600 mt-2">
                             Apakah Anda yakin ingin menghapus <strong>'{itemToDelete.value}'</strong>?
                         </p>
                         <div className="flex justify-end gap-3 mt-6">
@@ -357,6 +604,11 @@ const Settings: React.FC = () => {
                     </div>
                 )}
             </Modal>
+             <style>{`
+                .pb-safe {
+                padding-bottom: env(safe-area-inset-bottom);
+                }
+            `}</style>
         </div>
     );
 };

@@ -32,8 +32,8 @@ const NavItem: React.FC<{
       title={isCollapsed ? label : ""}
       className={`flex items-center p-3 my-1 rounded-xl transition-all duration-300 ease-in-out group ${
         isActive
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
-          : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+          ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-none'
+          : 'text-gray-500 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400'
       } ${isCollapsed ? 'justify-center px-0' : 'px-4'}`}
     >
       <div className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
@@ -99,12 +99,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, 
       ></div>
     
       <aside 
-        className={`fixed top-0 left-0 h-full bg-white flex flex-col shadow-2xl z-40 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 ${
+        className={`fixed top-0 left-0 h-full bg-white dark:bg-gray-800 flex flex-col shadow-2xl z-40 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } ${isCollapsed ? 'w-20' : 'w-72'}`}
       >
         <div className="relative">
-          <div className={`bg-blue-600 text-white p-5 transition-all duration-300 flex items-center ${isCollapsed ? 'justify-center' : 'gap-4'}`}>
+          <div className={`bg-blue-600 dark:bg-blue-800 text-white p-5 transition-all duration-300 flex items-center ${isCollapsed ? 'justify-center' : 'gap-4'}`}>
             <div className={`shrink-0 bg-white p-1.5 rounded-xl shadow-inner transition-all duration-300 ${isCollapsed ? 'w-10 h-10' : 'w-12 h-12'}`}>
               <img src={LOGO_URL} alt="ABSENIN Logo" className="w-full h-full object-contain" />
             </div>
@@ -118,7 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, 
           
           <button 
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="hidden lg:flex absolute -right-3 top-16 bg-white border border-gray-200 text-blue-600 rounded-full p-1 shadow-md hover:bg-blue-50 transition-colors z-50"
+            className="hidden lg:flex absolute -right-3 top-16 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-blue-600 dark:text-blue-400 rounded-full p-1 shadow-md hover:bg-blue-50 dark:hover:bg-gray-600 transition-colors z-50"
           >
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
@@ -160,21 +160,21 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, 
         </nav>
 
         {/* Footer Profile with Logout */}
-        <div className={`mt-auto border-t border-gray-50 p-4 transition-all duration-300 ${isCollapsed ? 'flex flex-col items-center gap-4' : ''}`}>
+        <div className={`mt-auto border-t border-gray-50 dark:border-gray-700 p-4 transition-all duration-300 ${isCollapsed ? 'flex flex-col items-center gap-4' : ''}`}>
           {!isCollapsed ? (
-            <div className="flex items-center justify-between bg-gray-50 p-2 rounded-xl border border-gray-100">
+            <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl border border-gray-100 dark:border-gray-600">
                <div className="flex items-center gap-3 overflow-hidden">
-                 <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center p-1 overflow-hidden shrink-0">
+                 <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center p-1 overflow-hidden shrink-0">
                    <img src={LOGO_URL} alt="ABSENIN Logo" className="w-full h-full object-contain" />
                  </div>
                  <div className="overflow-hidden">
-                    <p className="text-xs font-bold text-gray-700 truncate">Admin</p>
-                    <p className="text-[9px] text-gray-400 truncate tracking-tight">Akun Administrator</p>
+                    <p className="text-xs font-bold text-gray-700 dark:text-gray-200 truncate">Admin</p>
+                    <p className="text-[9px] text-gray-400 dark:text-gray-400 truncate tracking-tight">Akun Administrator</p>
                  </div>
                </div>
                <button 
                 onClick={handleLogout}
-                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/40 rounded-lg transition-all"
                 title="Keluar Sistem"
                >
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -185,7 +185,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, isOpen, 
           ) : (
             <button 
               onClick={handleLogout}
-              className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 border border-gray-100 transition-all"
+              className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700/50 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/40 border border-gray-100 dark:border-gray-600 transition-all"
               title="Logout"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -506,12 +506,12 @@ const App: React.FC = () => {
             onClose={() => setIsSidebarOpen(false)}
         />
         <main className="flex-1 flex flex-col min-h-screen overflow-hidden transition-all duration-300 pb-16 lg:pb-0">
-            <div className="lg:hidden p-3 flex justify-between items-center bg-white border-b shrink-0">
+            <div className="lg:hidden p-3 flex justify-between items-center bg-white dark:bg-gray-800 border-b dark:border-gray-700 shrink-0 transition-colors">
             <div className="flex items-center gap-3">
                 <img src="https://i.imgur.com/79JL73s.png" alt="ABSENIN Logo" className="h-8 w-8 object-contain" />
                 <h1 className="text-lg font-black text-blue-600 leading-none tracking-tighter">ABSENIN</h1>
             </div>
-            <button onClick={() => setIsLogoutModalOpen(true)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+            <button onClick={() => setIsLogoutModalOpen(true)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors">
                 <LogOut size={20} />
             </button>
             </div>

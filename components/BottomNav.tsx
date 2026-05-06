@@ -18,7 +18,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentPage, setCurrentPage }) =>
   ];
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 pb-safe">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t dark:border-gray-700 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] dark:shadow-none z-40 pb-safe transition-colors">
       <nav className="flex justify-around items-center h-16 px-2">
         {navItems.map((item) => {
           const isActive = currentPage === item.label;
@@ -27,7 +27,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentPage, setCurrentPage }) =>
               key={item.label}
               onClick={() => setCurrentPage(item.label)}
               className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                isActive ? 'text-blue-600' : 'text-gray-500 hover:text-blue-500'
+                isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-300'
               }`}
             >
               <div className={`transition-transform duration-300 ${isActive ? 'scale-110 mb-0.5' : ''}`}>
@@ -37,7 +37,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentPage, setCurrentPage }) =>
                 {item.label}
               </span>
               {isActive && (
-                <span className="w-1 h-1 rounded-full bg-blue-600 absolute bottom-1"></span>
+                <span className="w-1 h-1 rounded-full bg-blue-600 dark:bg-blue-400 absolute bottom-1"></span>
               )}
             </button>
           );
