@@ -30,11 +30,9 @@
         background: #2563eb; /* blue-600 */
       }
 
-      /* Print Styling for Thermal Printer - ENHANCED */
+      /* Print Styling for Thermal Printer - SUPER ENHANCED for ANY SIZE */
       @media print {
         @page {
-          /* Common thermal printer widths are 58mm or 80mm */
-          size: 58mm auto;
           margin: 0;
         }
         
@@ -56,49 +54,61 @@
           visibility: visible;
         }
 
-        /* Position the printable container to fill the page */
+        /* Position the printable container to fill the page, whatever the size */
         #printable-qr {
           position: absolute;
-          left: 50%;
-          transform: translateX(-50%);
+          left: 0;
           top: 0;
-          width: 58mm;
+          width: 100%;
+          container-type: inline-size;
           margin: 0;
-          padding: 3mm 0;
+          padding: 5cqi; /* 5% of paper width padding */
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: flex-start;
           background-color: white;
+          box-sizing: border-box;
         }
 
         .no-print {
           display: none !important;
         }
 
-        /* Style elements inside the printable area */
+        /* Elements inside use Container Query relative units (cqi) to adapt purely to paper width */
         #printable-qr h1 {
-          font-size: 14pt !important;
+          font-size: 15cqi !important;
           font-weight: 900 !important;
-          margin-bottom: 2mm !important;
+          margin-bottom: 2cqi !important;
           color: black !important;
+          text-align: center;
+          line-height: normal !important;
         }
+        
         #printable-qr img {
-          width: 40mm !important;
-          height: 40mm !important;
+          width: 80% !important; /* 80% of whatever the printer's paper width is */
+          height: auto !important;
+          margin: 0 auto;
+          display: block !important;
         }
+        
         #printable-qr h2 {
-          font-size: 12pt !important;
+          font-size: 8cqi !important;
           font-weight: 900 !important;
-          margin-top: 4mm !important;
+          margin-top: 5cqi !important;
           margin-bottom: 0 !important;
           color: black !important;
+          text-align: center;
+          line-height: normal !important;
         }
+        
         #printable-qr p {
-          font-size: 10pt !important;
-          margin-top: 1.5mm !important;
+          font-size: 6cqi !important;
+          margin-top: 2cqi !important;
           color: black !important;
           font-weight: 700 !important;
+          text-align: center;
+          line-height: normal !important;
         }
       }
     </style>

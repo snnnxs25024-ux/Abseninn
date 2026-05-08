@@ -26,13 +26,13 @@ interface DatabaseProps {
 // Helper Components
 const InputField = ({ label, name, type = "text", defaultValue, required = false, ...props }: any) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">{label}</label>
     <input 
       type={type} 
       name={name} 
       defaultValue={defaultValue} 
       required={required}
-      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
       {...props}
     />
   </div>
@@ -40,12 +40,12 @@ const InputField = ({ label, name, type = "text", defaultValue, required = false
 
 const SelectField = ({ label, name, defaultValue, options, required = false }: any) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">{label}</label>
     <select 
       name={name} 
       defaultValue={defaultValue} 
       required={required}
-      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
       <option value="">Select {label}</option>
       {options.map((opt: string) => (
@@ -672,38 +672,38 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
       </div>
       
       {/* New Worker Detail Modal */}
-      <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Detail Karyawan" size="lg" scrollable={false}>
+      <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Detail Karyawan" size="lg" scrollable={true}>
         {selectedWorker && (
             <div className="font-sans flex flex-col">
                 {/* Header */}
-                <div className="relative flex justify-between items-start px-6 pt-4 pb-3 bg-gray-50 rounded-t-lg">
+                <div className="relative flex justify-between items-start px-4 md:px-6 pt-4 pb-3 bg-gray-50 rounded-t-lg">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-800 tracking-tight">{selectedWorker.fullName}</h2>
-                        <p className="text-base font-mono text-blue-600 select-all">{selectedWorker.opsId}</p>
+                        <h2 className="text-xl md:text-2xl font-bold text-gray-800 tracking-tight">{selectedWorker.fullName}</h2>
+                        <p className="text-sm md:text-base font-mono text-blue-600 select-all">{selectedWorker.opsId}</p>
                     </div>
-                    <span className={`px-3 py-1 text-xs font-black uppercase tracking-widest rounded-full ${statusBadge.bg} ${statusBadge.text} border ${statusBadge.border}`}>
+                    <span className={`px-2 py-1 text-[10px] md:text-xs font-black uppercase tracking-widest rounded-full ${statusBadge.bg} ${statusBadge.text} border ${statusBadge.border}`}>
                         {selectedWorker.status}
                     </span>
                 </div>
 
                 {/* Main Content */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 px-6 py-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 px-4 md:px-6 py-4 md:py-6">
                     {/* Left Column: Info */}
-                    <div className="space-y-5">
-                        <div className="flex items-center gap-4">
-                            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center shrink-0 border-4 border-white ring-2 ring-blue-200">
-                                <span className="text-3xl font-bold text-blue-600">{getInitials(selectedWorker.fullName)}</span>
+                    <div className="space-y-4 md:space-y-5">
+                        <div className="flex items-center gap-3 md:gap-4">
+                            <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-100 rounded-full flex items-center justify-center shrink-0 border-4 border-white ring-2 ring-blue-200">
+                                <span className="text-2xl md:text-3xl font-bold text-blue-600">{getInitials(selectedWorker.fullName)}</span>
                             </div>
                             <div>
-                                <p className="font-bold text-gray-700 text-lg">{selectedWorker.department}</p>
-                                <p className="text-sm text-gray-500">{selectedWorker.contractType}</p>
-                                <div className="mt-2 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded inline-block bg-blue-50 text-blue-600 border border-blue-100">
+                                <p className="font-bold text-gray-700 text-base md:text-lg">{selectedWorker.department}</p>
+                                <p className="text-xs md:text-sm text-gray-500">{selectedWorker.contractType}</p>
+                                <div className="mt-1 md:mt-2 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded inline-block bg-blue-50 text-blue-600 border border-blue-100">
                                     {selectedWorker.workerType || 'Daily Worker Reguler'}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="space-y-4 border-t border-gray-100 pt-4">
+                        <div className="space-y-3 md:space-y-4 border-t border-gray-100 pt-3 md:pt-4">
                             <div className="flex items-center justify-between group">
                                 <div className="flex items-center gap-3">
                                     <User size={16} />
@@ -758,9 +758,9 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
         )}
       </Modal>
 
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title={selectedWorker ? "Edit Worker" : "Add New Worker"} size="3xl">
-        <form onSubmit={handleSaveWorker} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title={selectedWorker ? "Edit Worker" : "Add New Worker"} size="3xl" scrollable={true}>
+        <form onSubmit={handleSaveWorker} className="space-y-3 md:space-y-4 pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <InputField label="OpsID" name="opsId" defaultValue={selectedWorker?.opsId} required placeholder="e.g. OPS001" />
                 <InputField label="Full Name" name="fullName" defaultValue={selectedWorker?.fullName} required placeholder="e.g. John Doe" />
                 <InputField label="NIK KTP" name="nik" defaultValue={selectedWorker?.nik} required type="number" placeholder="16 digits" />
