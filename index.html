@@ -30,18 +30,17 @@
         background: #2563eb; /* blue-600 */
       }
 
-      /* Print Styling for Thermal Printer - SUPER ENHANCED for ANY SIZE */
+      /* Print Styling for Thermal Printer */
       @media print {
         @page {
           margin: 0;
+          size: 58mm auto; /* Default to 58mm thermal width, user can override in settings */
         }
         
         html, body {
           background-color: white;
           margin: 0;
           padding: 0;
-          height: 100vh;
-          overflow: hidden;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
@@ -56,15 +55,14 @@
           visibility: visible;
         }
 
-        /* Position the printable container to fill the page, whatever the size */
+        /* Position the printable container to fill the page exactly */
         #printable-qr {
           position: absolute;
           left: 0;
           top: 0;
           width: 100%;
-          container-type: inline-size;
           margin: 0;
-          padding: 5cqi; /* 5% of paper width padding */
+          padding: 2mm 0;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -77,40 +75,42 @@
           display: none !important;
         }
 
-        /* Elements inside use Container Query relative units (cqi) to adapt purely to paper width */
+        /* Elements inside use viewport width (vw) relative to paper size */
         #printable-qr h1 {
-          font-size: 15cqi !important;
+          font-size: 14vw !important;
           font-weight: 900 !important;
-          margin-bottom: 2cqi !important;
+          margin: 0 0 2vw 0 !important;
           color: black !important;
           text-align: center;
-          line-height: normal !important;
+          line-height: 1.1 !important;
         }
         
         #printable-qr img {
-          width: 80% !important; /* 80% of whatever the printer's paper width is */
+          width: 75% !important; 
           height: auto !important;
           margin: 0 auto;
           display: block !important;
         }
         
         #printable-qr h2 {
-          font-size: 8cqi !important;
+          font-size: 8vw !important;
           font-weight: 900 !important;
-          margin-top: 5cqi !important;
-          margin-bottom: 0 !important;
+          margin: 2vw 2vw 0 2vw !important;
           color: black !important;
           text-align: center;
-          line-height: normal !important;
+          line-height: 1.2 !important;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          max-width: 90% !important;
         }
         
         #printable-qr p {
-          font-size: 6cqi !important;
-          margin-top: 2cqi !important;
+          font-size: 6vw !important;
+          margin: 1vw 0 0 0 !important;
           color: black !important;
           font-weight: 700 !important;
           text-align: center;
-          line-height: normal !important;
+          line-height: 1 !important;
         }
       }
     </style>

@@ -1419,10 +1419,17 @@ const handleDownloadQrReceipt = async () => {
         // 5. Text information
         ctx.textAlign = 'center';
 
-        // Full Name (Bold and large)
-        ctx.font = `900 32px 'Inter', sans-serif`;
+        // Full Name (Bold and large, dynamic size for long names)
+        let fontSize = 32;
+        ctx.font = `900 ${fontSize}px 'Inter', sans-serif`;
+        let textWidth = ctx.measureText(qrWorkerData.fullName).width;
+        while (textWidth > width - 40 && fontSize > 16) {
+            fontSize -= 2;
+            ctx.font = `900 ${fontSize}px 'Inter', sans-serif`;
+            textWidth = ctx.measureText(qrWorkerData.fullName).width;
+        }
         ctx.fillStyle = '#111827';
-        ctx.fillText(qrWorkerData.fullName, width / 2, 395);
+        ctx.fillText(qrWorkerData.fullName, width / 2, 395, width - 40);
 
         // Ops ID (Medium, gray)
         ctx.font = `500 18px 'Inter', sans-serif`;
