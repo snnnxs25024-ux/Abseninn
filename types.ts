@@ -22,6 +22,7 @@ export interface AttendanceRecord {
   checkout_timestamp?: string | null; // Check-out time
   manual_status?: 'Partial' | 'Buffer' | null; // New field for manual additions
   is_takeout: boolean; // New field for takeout status
+  takeout_remarks?: string | null; // Remarks for why the worker was taken out
   is_arrived?: boolean; // New field for physical arrival confirmation (OTW vs Hadir)
 }
 

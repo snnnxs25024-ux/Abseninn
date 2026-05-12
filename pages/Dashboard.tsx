@@ -191,6 +191,7 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
     const [isDeleteSessionModalOpen, setIsDeleteSessionModalOpen] = useState(false);
     const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
     const [recordToDelete, setRecordToDelete] = useState<AttendanceRecord | null>(null);
+    const [takeoutModalData, setTakeoutModalData] = useState<{isOpen: boolean, recordId: number | null, remarks: string}>({isOpen: false, recordId: null, remarks: ''});
     const [loadingAction, setLoadingAction] = useState(false);
     const [manualAddOpsId, setManualAddOpsId] = useState('');
     const [manualAddStatus, setManualAddStatus] = useState<'Partial' | 'Buffer' | 'On Plan'>('On Plan');
@@ -258,6 +259,7 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Dynamic Options
+    const [departemenWidgetTab, setDepartemenWidgetTab] = useState<'departemen' | 'takeout'>('departemen');
     const [shiftIdOpts, setShiftIdOpts] = useState<string[]>(defaultShiftIds);
     const [departmentOpts, setDepartmentOpts] = useState<string[]>(defaultDepartments);
     const [shiftTimeOpts, setShiftTimeOpts] = useState<string[]>(defaultShiftTimes);
@@ -648,9 +650,9 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
         }
     };
     
-    const handleAction = async (action: 'checkout' | 'takeout', recordId: number) => {
+    const handleAction = async (action: 'checkout' | 'takeout', recordId: number, takeoutRemarks?: string) => {
         setLoadingAction(true);
-        const updateData = action === 'checkout' ? { checkout_timestamp: new Date().toISOString() } : { is_takeout: true };
+        const updateData = action === 'checkout' ? { checkout_timestamp: new Date().toISOString() } : { is_takeout: true, takeout_remarks: takeoutRemarks };
         
         const { data: updatedRecord, error } = await supabase
             .from('attendance_records')
@@ -660,12 +662,15 @@ const Dashboard: React.FC<DashboardProps> = ({ workers, attendanceHistory, refre
             .single();
 
         setLoadingAction(false);
+        if (action === 'takeout') setTakeoutModalData({ isOpen: false, recordId: null, remarks: '' });
+        
         if (error) {
             showToast(`Error: ${error.message}`, { type: 'error', title: 'Gagal Update' });
         } else if (updatedRecord && selectedSession) {
              const updatedFields = {
                 checkout_timestamp: updatedRecord.checkout_timestamp,
                 is_takeout: updatedRecord.is_takeout,
+                takeout_remarks: updatedRecord.takeout_remarks,
             };
             setAttendanceHistory(prevHistory =>
                 prevHistory.map(session =>
@@ -1570,6 +1575,55 @@ Update Rekapan √`;
         setIsFilterModalOpen(false);
     };
 
+    const takeoutRecords = useMemo(() => {
+        let start: Date, end: Date;
+        const targetDate = viewingDate;
+        
+        if (activeFilter.type === 'monthly') {
+            const year = targetDate.getFullYear();
+            const month = targetDate.getMonth();
+            start = new Date(year, month, 1);
+            end = new Date(year, month + 1, 0);
+        } else if (activeFilter.type === 'daily') {
+            const d = activeFilter.value.split('-');
+            const td = new Date(parseInt(d[0]), parseInt(d[1]) - 1, parseInt(d[2]));
+            start = td;
+            end = td;
+        } else if (activeFilter.type === 'yearly') {
+            const year = parseInt(activeFilter.value);
+            start = new Date(year, 0, 1);
+            end = new Date(year, 11, 31);
+        } else {
+            start = new Date(activeFilter.value.start);
+            end = new Date(activeFilter.value.end);
+        }
+
+        const relevantSessions = attendanceHistory.filter(session => {
+            const sessionDate = new Date(session.date + 'T00:00:00');
+            return sessionDate >= start && sessionDate <= end;
+        });
+
+        const records: (AttendanceRecord & { sessionDate: string, department: string })[] = [];
+        
+        for (const session of relevantSessions) {
+            for (const record of session.records) {
+                if (record.is_takeout) {
+                    const worker = workers.find(w => w.id === record.workerId);
+                    records.push({
+                        ...record,
+                        sessionDate: session.date,
+                        department: worker?.department || 'Belum Diatur',
+                        fullName: worker?.fullName || record.fullName || 'Unknown',
+                        opsId: worker?.opsId || record.opsId || 'N/A'
+                    });
+                }
+            }
+        }
+        
+        // Sort descending by session date
+        return records.sort((a, b) => new Date(b.sessionDate).getTime() - new Date(a.sessionDate).getTime());
+    }, [attendanceHistory, workers, viewingDate, activeFilter]);
+
     const departmentStats = useMemo(() => {
         const stats: Record<string, number> = {};
         const activeOnly = workers.filter(w => w.status === 'Active');
@@ -1748,32 +1802,85 @@ Update Rekapan √`;
                 </div>
             </div>
             
-            {/* Total per Departemen Widget */}
+            {/* Total per Departemen & DW Take Out Widget */}
             <div className="lg:col-span-1 bg-white rounded-lg shadow-lg border border-gray-200 border-t-4 border-teal-500 transition-shadow duration-300 hover:shadow-xl flex flex-col p-4 sm:p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Total per Departemen</h2>
+                <div className="flex space-x-2 border-b border-gray-100 mb-4 pb-2">
+                    <button 
+                        onClick={() => setDepartemenWidgetTab('departemen')}
+                        className={`text-sm font-semibold px-3 py-1.5 rounded-md transition-colors ${departemenWidgetTab === 'departemen' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        Total per Departemen
+                    </button>
+                    <button 
+                        onClick={() => setDepartemenWidgetTab('takeout')}
+                        className={`text-sm font-semibold px-3 py-1.5 rounded-md transition-colors ${departemenWidgetTab === 'takeout' ? 'bg-red-50 text-red-700' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        Data DW Take Out
+                    </button>
+                </div>
+
                 <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-                    {departmentStats.data.map((div, i) => (
-                        <div key={i} className="flex flex-col gap-1.5">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="font-medium text-gray-700">{div.name}</span>
-                                <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded-full text-[11px]">{div.count} orang</span>
-                            </div>
-                            <div className="w-full bg-gray-100 rounded-full h-2">
-                                <div 
-                                    className="bg-teal-500 h-2 rounded-full transition-all duration-500" 
-                                    style={{ width: `${div.percentage}%` }}
-                                ></div>
-                            </div>
+                    {departemenWidgetTab === 'departemen' ? (
+                        <>
+                            {departmentStats.data.map((div, i) => (
+                                <div key={i} className="flex flex-col gap-1.5">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="font-medium text-gray-700">{div.name}</span>
+                                        <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded-full text-[11px]">{div.count} orang</span>
+                                    </div>
+                                    <div className="w-full bg-gray-100 rounded-full h-2">
+                                        <div 
+                                            className="bg-teal-500 h-2 rounded-full transition-all duration-500" 
+                                            style={{ width: `${div.percentage}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            ))}
+                            {departmentStats.data.length === 0 && (
+                                <p className="text-sm text-gray-500 text-center py-4">Belum ada data departemen</p>
+                            )}
+                        </>
+                    ) : (
+                        <div className="space-y-3">
+                            {takeoutRecords.length > 0 ? (
+                                takeoutRecords.map((record) => (
+                                    <div key={`${record.sessionDate}-${record.id}`} className="flex flex-col gap-1 p-2 bg-red-50 rounded-md border border-red-100">
+                                        <div className="flex justify-between items-start">
+                                            <span className="font-semibold text-gray-800 text-sm whitespace-nowrap overflow-hidden text-ellipsis mr-2">{record.fullName}</span>
+                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase bg-red-200 text-red-800">
+                                                {record.sessionDate}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-xs text-gray-500">
+                                            <span>{record.opsId}</span>
+                                            <span>{record.department}</span>
+                                        </div>
+                                        {record.takeout_remarks && (
+                                            <div className="mt-1 flex items-start text-xs text-red-700 bg-red-100/50 p-1.5 rounded">
+                                                <span className="font-semibold mr-1">Remarks:</span>
+                                                <span className="italic">{record.takeout_remarks}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-sm text-gray-500 text-center py-4">Tidak ada Data DW Take Out</p>
+                            )}
                         </div>
-                    ))}
-                    {departmentStats.data.length === 0 && (
-                        <p className="text-sm text-gray-500 text-center py-4">Belum ada data departemen</p>
                     )}
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center text-sm">
-                    <span className="text-gray-500 font-medium">Total Departemen Aktif</span>
-                    <span className="font-black text-teal-600">{departmentStats.data.length}</span>
-                </div>
+                
+                {departemenWidgetTab === 'departemen' ? (
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center text-sm">
+                        <span className="text-gray-500 font-medium">Total Departemen Aktif</span>
+                        <span className="font-black text-teal-600">{departmentStats.data.length}</span>
+                    </div>
+                ) : (
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center text-sm">
+                        <span className="text-gray-500 font-medium">Total DW Take Out</span>
+                        <span className="font-black text-red-600">{takeoutRecords.length}</span>
+                    </div>
+                )}
             </div>
         </div>
 
@@ -2032,7 +2139,7 @@ Update Rekapan √`;
                                                 <td className="p-3 text-center">
                                                     <div className="flex justify-center items-center gap-1">
                                                         <button onClick={() => openQrModal(record)} className="text-gray-400 hover:text-black p-1" title="Print QR Code"><Printer size={14} /></button>
-                                                        <button onClick={() => handleAction('takeout', record.id)} disabled={loadingAction || record.is_takeout} className="text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-1 px-2 rounded uppercase">TakeOut</button>
+                                                        <button onClick={() => setTakeoutModalData({ isOpen: true, recordId: record.id, remarks: '' })} disabled={loadingAction || record.is_takeout} className="text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-1 px-2 rounded uppercase">TakeOut</button>
                                                         <button onClick={() => handleAction('checkout', record.id)} disabled={loadingAction || !!effectiveCheckoutTimeStr || record.is_takeout} className="text-[10px] bg-green-100 hover:bg-green-200 text-green-700 font-bold py-1 px-2 rounded uppercase">CheckOut</button>
                                                         <button onClick={() => openDeleteRecordModal(record)} disabled={loadingAction} className="text-red-400 hover:text-red-700 p-1"><Trash2 size={14} /></button>
                                                     </div>
@@ -2169,6 +2276,30 @@ Update Rekapan √`;
                             <button onClick={() => setIsDeleteRecordModalOpen(false)} className="py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold">Cancel</button>
                             <button onClick={handleConfirmDeleteRecord} className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold" disabled={loadingAction}>
                                 {loadingAction ? 'Deleting...' : 'Delete Record'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            <Modal isOpen={takeoutModalData.isOpen} onClose={() => setTakeoutModalData({ isOpen: false, recordId: null, remarks: '' })} title="Takeout Actions & Remarks" size="md" scrollable={false}>
+                {takeoutModalData.recordId && (
+                    <div className="flex flex-col gap-4">
+                        <p className="text-gray-600 text-sm">Please provide remarks/reason for taking out this worker.</p>
+                        <textarea
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[100px] resize-y"
+                            placeholder="Enter takeout remarks (e.g., Early leave, Sick, Emergency)..."
+                            value={takeoutModalData.remarks}
+                            onChange={(e) => setTakeoutModalData(prev => ({ ...prev, remarks: e.target.value }))}
+                        />
+                        <div className="flex justify-end gap-4 mt-2">
+                            <button onClick={() => setTakeoutModalData({ isOpen: false, recordId: null, remarks: '' })} className="py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition-colors duration-200">Batal</button>
+                            <button 
+                                onClick={() => handleAction('takeout', takeoutModalData.recordId!, takeoutModalData.remarks)} 
+                                className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors duration-200 disabled:opacity-50" 
+                                disabled={loadingAction}
+                            >
+                                {loadingAction ? 'Processing...' : 'Confirm Takeout'}
                             </button>
                         </div>
                     </div>

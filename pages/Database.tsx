@@ -68,6 +68,8 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
   const [isImportSummaryOpen, setIsImportSummaryOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [workerTypeFilter, setWorkerTypeFilter] = useState('All');
   const [departmentOpts, setDepartmentOpts] = useState<string[]>([]);
   const [workerTypeOpts, setWorkerTypeOpts] = useState<string[]>([]);
   const [contractTypeOpts, setContractTypeOpts] = useState<string[]>([]);
@@ -101,18 +103,19 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
   const filteredWorkers = useMemo(() => {
     return workers
       .filter(worker => {
-        if (departmentFilter === 'All') return true;
-        return worker.department === departmentFilter;
-      })
-      .filter(worker => {
-        if (searchTerm.trim() === '') return true;
-        const lowercasedSearch = searchTerm.trim().toLowerCase();
-        return (
-          (worker.fullName || '').trim().toLowerCase().includes(lowercasedSearch) ||
-          (worker.opsId || '').trim().toLowerCase().includes(lowercasedSearch)
-        );
+        if (departmentFilter !== 'All' && worker.department !== departmentFilter) return false;
+        if (statusFilter !== 'All' && worker.status !== statusFilter) return false;
+        if (workerTypeFilter !== 'All' && worker.workerType !== workerTypeFilter) return false;
+        if (searchTerm.trim() !== '') {
+            const lowercasedSearch = searchTerm.trim().toLowerCase();
+            return (
+              (worker.fullName || '').trim().toLowerCase().includes(lowercasedSearch) ||
+              (worker.opsId || '').trim().toLowerCase().includes(lowercasedSearch)
+            );
+        }
+        return true;
       });
-  }, [workers, searchTerm, departmentFilter, departmentOpts]);
+  }, [workers, searchTerm, departmentFilter, statusFilter, workerTypeFilter, departmentOpts]);
   
   // QR Code Generation for the new View Modal
   useEffect(() => {
@@ -594,9 +597,9 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
         </div>
       </div>
 
-      {/* Search Bar Card */}
+      {/* Search & Filters */}
       <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <div className="relative">
+          <div className="relative mb-4">
              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                 <Search size={18} />
              </div>
@@ -605,24 +608,47 @@ const Database: React.FC<DatabaseProps> = ({ workers, refreshData }) => {
               placeholder="Search by OpsID or Name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
             />
           </div>
-      </div>
-
-      {/* Filter Bar Card */}
-      <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-        <div className="flex flex-wrap gap-2 p-1 bg-gray-50 rounded-lg overflow-x-auto">
-            {['All', ...departmentOpts].map(div => (
-                <button
-                    key={div}
-                    onClick={() => setDepartmentFilter(div)}
-                    className={`px-4 py-2 rounded-md text-sm font-bold transition-all whitespace-nowrap ${departmentFilter === div ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}
-                >
-                    {div}
-                </button>
-            ))}
-        </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                 <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 mt-1">Departemen</label>
+                 <select 
+                    value={departmentFilter} 
+                    onChange={(e) => setDepartmentFilter(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 >
+                    <option value="All">All Departemen</option>
+                    {departmentOpts.map(d => <option key={d} value={d}>{d}</option>)}
+                 </select>
+              </div>
+              <div>
+                 <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 mt-1">Worker Type</label>
+                 <select 
+                    value={workerTypeFilter} 
+                    onChange={(e) => setWorkerTypeFilter(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 >
+                    <option value="All">All Worker Types</option>
+                    {workerTypeOpts.map(w => <option key={w} value={w}>{w}</option>)}
+                 </select>
+              </div>
+              <div>
+                 <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 mt-1">Status</label>
+                 <select 
+                    value={statusFilter} 
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 md:p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 >
+                    <option value="All">All Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Non Active">Non Active</option>
+                    <option value="Blacklist">Blacklist</option>
+                 </select>
+              </div>
+          </div>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
